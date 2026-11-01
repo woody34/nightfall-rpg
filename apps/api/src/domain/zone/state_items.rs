@@ -83,7 +83,11 @@ impl ZoneState {
 
     /// Construct a V7 epoch (design §12.1): the V6 inputs plus the bound Phase 5 rules,
     /// an empty Phase 5 block and the `version_three` admission policy.
-    #[allow(clippy::too_many_arguments)] // Independent epoch inputs must remain explicit.
+    #[allow(clippy::too_many_arguments)]
+    // Independent epoch inputs must remain explicit.
+    // The V6 bundle is taken by value like `new_phase4`; a V7 epoch binds it and then runs
+    // on the economy rules' V7 item view (D10), so the argument itself is only checked.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new_phase5(
         seed: ZoneSeed,
         bounds: ZoneBounds,
@@ -98,6 +102,10 @@ impl ZoneState {
         economy
             .validate_phase4(&items)
             .map_err(SnapshotError::Rules)?;
+        // D10: a V7 epoch runs on the V7 item view (V6 ∪ closure, under the V6 hash).
+        let items = Arc::clone(economy.v7_items().ok_or_else(|| {
+            SnapshotError::Rules("V7 economy rules without the bound closure items".into())
+        })?);
         let mut state = Self::new_phase4(
             seed,
             bounds,
@@ -113,6 +121,7 @@ impl ZoneState {
             rules: economy,
             fault: None,
             rewards: None,
+            ledger: Vec::new(),
         });
         state.meta.schema_version = 11;
         state.meta.digest_version = StateDigestVersion::BinaryV7;
@@ -139,7 +148,27 @@ impl ZoneState {
                     tick: self.next_tick,
                 },
             )
-            .map_err(|error| SnapshotError::Rules(error.to_string()))
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
+        self.validate_pinned_slots()
+    }
+
+    /// z-review-3 P2-1: on a V7 zone every slot's `pinned_npc_id` names a pinned template
+    /// (one with a `rewards.toml` row, P5-D12), checked when the slots are installed and at
+    /// restore, so a bad overlay refuses boot instead of halting the zone at a kill.
+    pub(super) fn validate_pinned_slots(&self) -> Result<(), SnapshotError> {
+        let Some(phase5) = &self.phase5 else {
+            return Ok(());
+        };
+        for spec in &self.slots {
+            if let Some(id) = spec.pinned_npc_id {
+                if phase5.rules.reward_npc(id).is_none() {
+                    return Err(SnapshotError::Rules(format!(
+                        "spawn slot pins npc {id}, which is not a pinned template"
+                    )));
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Admit a player's V7 record from its load (design §1.11): a V7 load requires the

@@ -52,6 +52,14 @@ fn floor(r: &Rational) -> Result<u64, DropError> {
     Ok(r.floor_u64()?)
 }
 
+/// Java's `(int)` narrowing of a non-negative `double`/`float`, or an `int` compound
+/// assignment: saturates at `Integer.MAX_VALUE` (z-review-2/3 P2-2; JLS §5.1.3).
+const JAVA_INT_MAX: u64 = 2_147_483_647;
+
+fn java_int(v: u64) -> u64 {
+    v.min(JAVA_INT_MAX)
+}
+
 /// The NPC base rewards (`L2Npc.getExpReward/getSpReward`, `:961-970`):
 /// `X = ⌊fl(fl(lvl² × expRate) × RateXp')⌋` and `S = ⌊fl(sp × RateSp')⌋`, with the G-folded
 /// `RateXp'`/`RateSp'` of the bound rules (E29). `expRate` absent is "0".
@@ -73,7 +81,8 @@ pub fn base_rewards(
     let exp_rate = Rational::parse_decimal(exp_rate)?.fl()?.rational()?;
     let sp = Rational::parse_decimal(sp)?.fl()?.rational()?;
     let x = floor(&fl(&fl(&squared.mul(&exp_rate))?.mul(&experience_rate))?)?;
-    let s = floor(&fl(&sp.mul(&skill_point_rate))?)?;
+    // `getSpReward()` is `(int)`; `getExpReward()` stays a `double` (floored at use).
+    let s = java_int(floor(&fl(&sp.mul(&skill_point_rate))?)?);
     Ok((x, s))
 }
 
@@ -102,12 +111,23 @@ pub fn calc_exp_sp(
         return Ok((0, 0));
     }
     let sp = if sp.compare(&zero).is_le() { zero } else { sp };
-    Ok((floor(&xp)?, floor(&sp)?))
+    // `return new int[] { (int) xp, (int) sp }`.
+    Ok((java_int(floor(&xp)?), java_int(floor(&sp)?)))
 }
 
 /// `exp *= penalty` etc.: a `long *= float` is `⌊fl32(fl32(v) × m)⌋` (float arithmetic).
 fn float_scale(v: u64, m: &Rational) -> Result<u64, DropError> {
     floor(&fl32(&fl32(&int(v)?)?.mul(m))?)
+}
+
+/// `sp = (addSp * percent) / 100` of `calculateExpSpPartyCutoff` (`L2Party.java:704`): `int`
+/// arithmetic, so the product wraps (JLS §15.17.1) and the division truncates toward zero; a
+/// negative result adds no SP (`PlayableStat.addSp` refuses `sp < 0`, `:165-169`).
+fn highfive_sp(add_sp: u64, percent: u32) -> u64 {
+    let add_sp = i32::try_from(java_int(add_sp)).unwrap_or(i32::MAX);
+    let percent = i32::try_from(percent).unwrap_or(i32::MAX);
+    let sp = add_sp.wrapping_mul(percent) / 100;
+    u64::try_from(sp).unwrap_or(0)
 }
 
 /// `L2Party.distributeXpAndSp` (`:644-714`) with the `highfive` cutoff.
@@ -144,7 +164,8 @@ fn party_distribute(
         fl(&b.mul(&rate))
     };
     let exp = floor(&fl(&int(exp)?.mul(&bonus("RatePartyXp")?))?)?;
-    let sp = floor(&fl(&int(sp)?.mul(&bonus("RatePartySp")?))?)?;
+    // `spReward *= getSpBonus(..)` is an `int` compound assignment.
+    let sp = java_int(floor(&fl(&int(sp)?.mul(&bonus("RatePartySp")?))?)?);
     let squares: u64 = rewarded
         .iter()
         .map(|(_, p)| u64::from(p.level).saturating_mul(u64::from(p.level)))
@@ -162,16 +183,14 @@ fn party_distribute(
         let v = fl(&int(exp)?.mul(&pre))?;
         let half = Rational::integer(1).div(&Rational::integer(2))?;
         let ae = floor(&v.add(&half))?;
-        let as_ = floor(&fl(&int(sp)?.mul(&pre))?)?;
+        // `addsp = (int) (spReward * preCalculation)`.
+        let as_ = java_int(floor(&fl(&int(sp)?.mul(&pre))?)?);
         let gap = i64::from(top).saturating_sub(i64::from(facts.level));
         let award = gaps
             .iter()
             .find(|g| i64::from(g.min) <= gap && gap <= i64::from(g.max))
             .map_or((0, 0), |g| {
-                (
-                    ae.saturating_mul(u64::from(g.percent)) / 100,
-                    as_.saturating_mul(u64::from(g.percent)) / 100,
-                )
+                (ae.saturating_mul(u64::from(g.percent)) / 100, highfive_sp(as_, g.percent))
             });
         out.push(Award {
             player: *player,
@@ -265,7 +284,8 @@ pub fn reward_pass(
             base.1,
         )?;
         let e = float_scale(e, &multiplier)?;
-        let s = float_scale(s, &multiplier)?;
+        // `sp *= partyMul` narrows to `int`.
+        let s = java_int(float_scale(s, &multiplier)?);
         if party_damage > 0 {
             party_distribute(rules, e, s, &rewarded, party_level, &mut awards)?;
         }
@@ -296,6 +316,76 @@ mod tests {
 
     fn pair(v: &serde_json::Value) -> (u64, u64) {
         (v[0].as_u64().unwrap(), v[1].as_u64().unwrap())
+    }
+
+    /// The embedded rules re-hashed at `G = 8` (every G-multiplied rate is pinned 1, so
+    /// each `rate'` is exactly 8).
+    fn rules_at_g8() -> Phase5Rules {
+        let mut parts = rules().parts().clone();
+        parts.rates.global_multiplier_g = "8".into();
+        parts.rates.global_multiplier_g_bits = "4020000000000000".into();
+        let rates = &mut parts.rates;
+        for config in rates
+            .double_rates
+            .values_mut()
+            .chain(rates.float_rates.values_mut())
+            .chain(rates.int_rates.values_mut())
+            .chain(rates.item_overrides.values_mut())
+        {
+            if config.rate_prime.is_some() {
+                assert_eq!(config.value, "1");
+                config.rate_prime = Some("8".into());
+                config.rate_prime_bits = Some("4020000000000000".into());
+            }
+        }
+        Phase5Rules::try_new(parts).unwrap()
+    }
+
+    /// z-review-3 P2-2, family X at G = 8 for npc 29068 (the largest base XP): Java's `(int)`
+    /// casts saturate at `Integer.MAX_VALUE` (the solo `exp *= penalty` float step then gives
+    /// 2^31), not ≈ 8 × X(G = 1),
+    /// while the SP (8 × 63,323,403) still fits; the party SP cutoff wraps like Java `int`.
+    #[test]
+    fn x_vector_g8_npc_29068_saturates_like_java_int() {
+        let base = rules();
+        let g8 = rules_at_g8();
+        let row = base.reward_npc(29068).unwrap();
+        let (x1, s1) = base_rewards(&base, row.level, &row.exp_rate, &row.sp).unwrap();
+        let (x8, s8) = base_rewards(&g8, row.level, &row.exp_rate, &row.sp).unwrap();
+        assert_eq!((x1, s1), (538_538_584, 63_323_403));
+        // X keeps its double fraction until the floor (⌊8·fl(·)⌋ ≥ 8·⌊fl(·)⌋); SP is an int.
+        assert_eq!((x8, s8), (4_308_308_679, 8 * 63_323_403));
+        assert!(x8 > 2_147_483_647);
+        let mut damage = BTreeMap::new();
+        damage.insert(id(1), 1000);
+        let mut players = BTreeMap::new();
+        let me = RewardPlayer {
+            level: row.level,
+            alive: true,
+            in_range: true,
+        };
+        players.insert(id(1), me);
+        let solo = reward_pass(&g8, &damage, &[], &players, row.level, (x8, s8)).unwrap();
+        // `(int) xp` saturates to 2^31 − 1, then `exp *= penalty` is float arithmetic on a
+        // long: fl32(2^31 − 1) = 2^31, so pinned awards 2,147,483,648.
+        assert_eq!(
+            solo,
+            vec![Award {
+                player: id(1),
+                exp: 2_147_483_648,
+                sp: 506_587_224
+            }]
+        );
+        // calcExpSp's `(int)` on both outputs, and getSpReward's `(int)` on the base.
+        assert_eq!(
+            calc_exp_sp(0, 1, 1, u64::MAX >> 2, u64::MAX >> 2).unwrap(),
+            (2_147_483_647, 2_147_483_647)
+        );
+        // highfive: `(addSp * percent) / 100` in int — 506,587,224 × 100 wraps.
+        let wrapped = i32::try_from(506_587_224_u64).unwrap().wrapping_mul(100) / 100;
+        assert_eq!(highfive_sp(506_587_224, 100), u64::try_from(wrapped).unwrap_or(0));
+        assert_eq!(highfive_sp(21_474_836, 100), 21_474_836);
+        assert_eq!(highfive_sp(21_474_837, 100), 0, "wraps negative: no SP");
     }
 
     /// Family X: base rewards and the solo diffs (pow56 per E32; k = 80 fails closed).

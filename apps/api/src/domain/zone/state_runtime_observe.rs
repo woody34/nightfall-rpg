@@ -14,6 +14,52 @@ impl ZoneState {
         events: &[ZoneEvent],
     ) -> Result<BTreeMap<EntityId, Vec<ObserverOutput>>, TickError> {
         let mut outputs = self.observe(tick, responses, events);
+        // §13.1 routing of the V7 economy facts (story 3.5): each to its audience among the
+        // session observers, receipts first, then the other facts, both in emission order.
+        if self.phase5.is_some() {
+            let observers: Vec<EntityId> = self.known.keys().copied().collect();
+            let sees = |observer: EntityId, id: EntityId| {
+                observer == id
+                    || self
+                        .known
+                        .get(&observer)
+                        .is_some_and(|(_, known)| known.binary_search(&id).is_ok())
+            };
+            let receipts_first = events
+                .iter()
+                .filter_map(|e| match e {
+                    ZoneEvent::Economy(economy) => Some((e, economy)),
+                    _ => None,
+                })
+                .filter(|(_, economy)| {
+                    matches!(economy.body, crate::domain::zone::EconomyBody::EconomyResult { .. })
+                })
+                .chain(
+                    events
+                        .iter()
+                        .filter_map(|e| match e {
+                            ZoneEvent::Economy(economy) => Some((e, economy)),
+                            _ => None,
+                        })
+                        .filter(|(_, economy)| {
+                            !matches!(
+                                economy.body,
+                                crate::domain::zone::EconomyBody::EconomyResult { .. }
+                            )
+                        }),
+                );
+            for (raw, economy) in receipts_first {
+                for recipient in Self::economy_recipients(economy, sees, observers.iter().copied())
+                {
+                    if self.known.contains_key(&recipient) {
+                        outputs
+                            .entry(recipient)
+                            .or_default()
+                            .push(ObserverOutput::Event(raw.clone()));
+                    }
+                }
+            }
+        }
         let revived: std::collections::BTreeSet<_> = events
             .iter()
             .filter_map(|e| {

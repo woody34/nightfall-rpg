@@ -8,6 +8,7 @@
 //! Snapshots and admission carry only the hash; the bytes come from the embedded tables.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
@@ -60,6 +61,18 @@ record!(DropNpc {
     harvest_skills: Vec<u32>, exp_rate: String, sp: String, collision_radius: u32,
     death: Vec<DropNode>, corpse: Vec<DropNode>
 });
+// P5-D12: B16 base rewards (design §4.5) for every pinned NPC template, the only source of
+// level, rewards, raid flag, corpse time and collision radius in V7.
+record!(RewardNpc {
+    id: u32,
+    level: u32,
+    exp_rate: String,
+    sp: String,
+    is_raid: bool,
+    corpse_time: u64,
+    collision_radius: u32
+});
+record!(RewardsTable { schema_version: u32, npc_count: u64, npc: Vec<RewardNpc> });
 record!(CorpseTimeOverride {
     id: u32,
     corpse_time: u64
@@ -205,6 +218,12 @@ record!(CatalogueTable {
     not_storable: Vec<u32>, pending_d97: Vec<u32>, non_executable_recipe_items: Vec<BlockedTemplate>,
     shared_recipe_items: Vec<SharedRecipeItem>, special_multisell_ingredients: Vec<SpecialIngredient>,
     templates: Vec<CatalogueTemplate>, counts: CatalogueCounts
+});
+
+// D10: the closure templates' item rows, a Phase 5 table so the V6 bundle stays unchanged.
+record!(ItemsClosureTable {
+    schema_version: u32, v6_items_sha256: String,
+    items: Vec<super::item_rules::ItemDefinition>, capabilities: Vec<super::item_rules::ItemCapability>
 });
 
 // ---- item 6: merchants -------------------------------------------------------------------------
@@ -480,11 +499,13 @@ record!(PowTable { java_version: String, sha256: String, pow56: Vec<String>, pow
 // Everything `Phase5Rules` hashes, in design §1.10 item order.
 record!(Phase5RulesParts {
     drops: DropsTable,
+    rewards: RewardsTable,
     rates: RatesTable,
     ground: GroundTable,
     party: PartyTable,
     herbs: HerbsTable,
     catalogue: CatalogueTable,
+    items_closure: ItemsClosureTable,
     merchants: MerchantsTable,
     multisell: MultisellTable,
     recipes: RecipesTable,
@@ -537,6 +558,8 @@ pub struct Phase5Inventory {
     pub adaptations: u64,
     pub l_table_rows: u64,
     pub pow_entries: u64,
+    pub reward_npcs: u64,
+    pub closure_items: u64,
 }
 
 /// Validated and hashed Phase 5 rules (design §1.10).
@@ -548,7 +571,11 @@ pub struct Phase5Rules {
     hash: [u8; 32],
     /// Derived lookups (not hashed: functions of `parts`).
     npc_index: BTreeMap<u32, usize>,
+    reward_index: BTreeMap<u32, usize>,
     herbs: BTreeSet<u32>,
+    /// D10: the V7 item view, bound by [`Self::bind_items`] (a function of `parts` and the
+    /// bound V6 bundle, so not hashed).
+    v7_items: Option<Arc<super::Phase4Rules>>,
 }
 
 /// The drop list a roll walks (design §3.1): DEATH uses the DROP strategies, CORPSE the SPOIL
@@ -613,11 +640,11 @@ impl Phase5Rules {
         let (inventory, g) = parts.validate()?;
         let mut bytes = PHASE5_RULES_DOMAIN.to_vec();
         let items: [(&str, serde_json::Value); 11] = [
-            ("1.drops", json(&parts.drops)?),
+            ("1.drops", json(&(&parts.drops, &parts.rewards))?),
             ("2.rates", json(&parts.rates)?),
             ("3.ground", json(&parts.ground)?),
             ("4.party", json(&parts.party)?),
-            ("5.herbs", json(&(&parts.herbs, &parts.catalogue))?),
+            ("5.herbs", json(&(&parts.herbs, &parts.catalogue, &parts.items_closure))?),
             ("6.merchants", json(&parts.merchants)?),
             ("7.multisell", json(&parts.multisell)?),
             ("8.recipes", json(&parts.recipes)?),
@@ -646,6 +673,13 @@ impl Phase5Rules {
             .enumerate()
             .map(|(index, npc)| (npc.id, index))
             .collect();
+        let reward_index = parts
+            .rewards
+            .npc
+            .iter()
+            .enumerate()
+            .map(|(index, npc)| (npc.id, index))
+            .collect();
         let herbs = parts
             .herbs
             .handled
@@ -659,8 +693,62 @@ impl Phase5Rules {
             g,
             hash: Sha256::digest(bytes).into(),
             npc_index,
+            reward_index,
             herbs,
+            v7_items: None,
         })
+    }
+
+    /// The `rewards.toml` row of a pinned npc id (P5-D12): every pinned template has one.
+    #[must_use]
+    pub fn reward_npc(&self, pinned: u32) -> Option<&RewardNpc> {
+        self.reward_index
+            .get(&pinned)
+            .and_then(|index| self.parts.rewards.npc.get(*index))
+    }
+
+    /// D10: bind the closure item rows to the V6 bundle these rules are bound to. The V7
+    /// item view is the V6 bundle plus the closure rows under the V6 hash (the V6 bundle
+    /// itself is unchanged); V7 admission, grants, drops and ground items use it.
+    pub fn bind_items(&mut self, phase4: &super::Phase4Rules) -> Result<(), String> {
+        self.validate_phase4(phase4)?;
+        let closure = &self.parts.items_closure;
+        ensure(closure.v6_items_sha256 == hex(phase4.hash()), || {
+            "items_closure: v6_items_sha256 differs from the bound V6 bundle".into()
+        })?;
+        let v6 = phase4.parts();
+        if closure
+            .items
+            .iter()
+            .all(|row| v6.items.get(&row.template_id) == Some(row))
+            && closure
+                .capabilities
+                .iter()
+                .all(|row| v6.capabilities.get(&row.template_id) == Some(row))
+        {
+            // Already the V7 item view (a restore of a V7 state passes it back in).
+            self.v7_items = Some(Arc::new(phase4.clone()));
+            return Ok(());
+        }
+        for row in &closure.items {
+            ensure(!v6.items.contains_key(&row.template_id), || {
+                format!("items_closure: template {} is already a V6 item", row.template_id)
+            })?;
+        }
+        let extended = phase4.with_closure(&closure.items, &closure.capabilities)?;
+        for template in &self.parts.catalogue.templates {
+            ensure(extended.parts().items.contains_key(&template.id), || {
+                format!("catalogue template {} has no V6 or closure item row", template.id)
+            })?;
+        }
+        self.v7_items = Some(Arc::new(extended));
+        Ok(())
+    }
+
+    /// The V7 item view (V6 ∪ closure, under the V6 hash); `None` until [`Self::bind_items`].
+    #[must_use]
+    pub fn v7_items(&self) -> Option<&Arc<super::Phase4Rules>> {
+        self.v7_items.as_ref()
     }
 
     /// The `drops.toml` row of a pinned npc id.
@@ -1041,6 +1129,8 @@ impl Phase5RulesParts {
         let e = |error: super::binary64::Binary64Error| error.to_string();
         for (name, version) in [
             ("drops", self.drops.schema_version),
+            ("rewards", self.rewards.schema_version),
+            ("items_closure", self.items_closure.schema_version),
             ("rates", self.rates.schema_version),
             ("ground", self.ground.schema_version),
             ("party", self.party.schema_version),
@@ -1298,6 +1388,15 @@ impl Phase5RulesParts {
         for row in &self.ground.ground.auto_destroy_time {
             closure.require("ground", row.item_id)?;
         }
+        // z-review-3 P3-3: the planner's NPC-killer branch (`isKillerNpc && level > 4`,
+        // `L2PcInstance.java:4503`) draws only for `PlayerRateDrop > 0`; the hashed value is
+        // the pinned 0, and anything else fails closed until that branch is implemented.
+        ensure(self.ground.pk.player_rate_drop == 0, || {
+            format!(
+                "ground: PlayerRateDrop {} needs the NPC-killer PK branch",
+                self.ground.pk.player_rate_drop
+            )
+        })?;
         ensure(self.ground.pk.pk_drop_protection == "None", || {
             "ground: pk_drop_protection must be None (E24)".into()
         })?;
@@ -1866,6 +1965,8 @@ impl Phase5RulesParts {
         }
         inv.pow_entries = len(&self.pow.pow56).saturating_add(len(&self.pow.pow13));
 
+        self.validate_rewards_and_closure(&mut inv)?;
+
         // Closure: the catalogue is exactly the set of referenced templates.
         ensure(closure.referenced.len() == templates.len(), || {
             format!(
@@ -1875,6 +1976,84 @@ impl Phase5RulesParts {
             )
         })?;
         Ok((inv, g))
+    }
+
+    /// P5-D12 rewards and the D10 closure item rows (the V6-dependent half is
+    /// [`Phase5Rules::bind_items`]).
+    fn validate_rewards_and_closure(&self, inv: &mut Phase5Inventory) -> Check {
+        let rewards = &self.rewards;
+        ensure(rewards.npc_count == len(&rewards.npc), || {
+            format!("rewards: npc_count {} but {} rows", rewards.npc_count, rewards.npc.len())
+        })?;
+        let mut previous = 0;
+        let mut by_id = BTreeMap::new();
+        for row in &rewards.npc {
+            ensure(row.id > previous, || format!("rewards: npc {} out of order", row.id))?;
+            previous = row.id;
+            for (label, value) in [("exp_rate", &row.exp_rate), ("sp", &row.sp)] {
+                let parsed = Rational::parse_decimal(value)
+                    .map_err(|err| format!("rewards npc {}: {label} {err}", row.id))?;
+                ensure(parsed.compare(&Rational::integer(0)).is_ge(), || {
+                    format!("rewards npc {}: negative {label}", row.id)
+                })?;
+            }
+            by_id.insert(row.id, row);
+        }
+        // The six shared fields of every drops.toml npc agree with its rewards row.
+        for npc in &self.drops.npc {
+            let row = by_id
+                .get(&npc.id)
+                .ok_or_else(|| format!("rewards: drops npc {} has no row", npc.id))?;
+            ensure(
+                row.level == npc.level
+                    && row.exp_rate == npc.exp_rate
+                    && row.sp == npc.sp
+                    && row.is_raid == npc.is_raid
+                    && row.corpse_time == npc.corpse_time
+                    && row.collision_radius == npc.collision_radius,
+                || format!("rewards: npc {} disagrees with drops.toml", npc.id),
+            )?;
+        }
+        for id in &self.drops.sp_only_templates {
+            ensure(by_id.contains_key(id), || format!("rewards: sp-only npc {id} has no row"))?;
+        }
+        inv.reward_npcs = len(&rewards.npc);
+
+        let closure = &self.items_closure;
+        let expected: BTreeSet<u32> = self
+            .catalogue
+            .phase4_closure_additions
+            .iter()
+            .copied()
+            .collect();
+        let mut previous = 0;
+        for row in &closure.items {
+            ensure(row.template_id > previous, || {
+                format!("items_closure: item {} out of order", row.template_id)
+            })?;
+            previous = row.template_id;
+        }
+        let mut previous = 0;
+        for row in &closure.capabilities {
+            ensure(row.template_id > previous, || {
+                format!("items_closure: capability {} out of order", row.template_id)
+            })?;
+            previous = row.template_id;
+            ensure(row.storable, || {
+                format!("items_closure: template {} is not storable (D5)", row.template_id)
+            })?;
+        }
+        let items: BTreeSet<u32> = closure.items.iter().map(|row| row.template_id).collect();
+        let capabilities: BTreeSet<u32> = closure
+            .capabilities
+            .iter()
+            .map(|row| row.template_id)
+            .collect();
+        ensure(items == expected && capabilities == expected, || {
+            "items_closure: rows differ from catalogue phase4_closure_additions".into()
+        })?;
+        inv.closure_items = len(&closure.items);
+        Ok(())
     }
 }
 

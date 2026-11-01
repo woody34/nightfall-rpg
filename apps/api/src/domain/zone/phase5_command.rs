@@ -476,6 +476,19 @@ impl Phase5Command {
         }
     }
 
+    /// The D41 request fingerprint: lowercase hex SHA-256 of the canonical JSON of the whole
+    /// recorded command (owner, key, body). The same key with another body is a conflict.
+    #[must_use]
+    pub fn fingerprint_hex(&self) -> String {
+        use sha2::Digest as _;
+        let bytes = serde_json::to_vec(self).unwrap_or_default();
+        let mut text = String::with_capacity(64);
+        for byte in sha2::Sha256::digest(bytes) {
+            let _ = std::fmt::Write::write_fmt(&mut text, format_args!("{byte:02x}"));
+        }
+        text
+    }
+
     /// The client key, or the system job's derived key.
     #[must_use]
     pub const fn request_key(&self) -> uuid::Uuid {
