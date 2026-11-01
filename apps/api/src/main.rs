@@ -168,17 +168,32 @@ async fn build_dependencies(
     // bundle the zone boots with: the embedded D27 item tables bound to the Phase 3 data of
     // the configured source (RULES_DIR overlay, else embedded), composed once (T8).
     let phase4 = zone_cfg.prepare_phase4(&classes)?;
-    if let Some(bundle) = &phase4 {
+    // Q4 (P5-D7/D10): a V7 epoch serves and persists the V7 item view (V6 ∪ closure, under the
+    // unchanged V6 hash), so the catalogue, dev grants and checkpoint validation accept the
+    // closure templates the V7 zone accepts. V5/V6 keep the V6 bundle.
+    let phase5 = zone_cfg.prepare_phase5(phase4.as_ref())?;
+    let items = match (&phase4, &phase5) {
+        (Some(_), Some(rules)) => Some(
+            rules
+                .v7_items()
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("the V7 item view is not bound"))?,
+        ),
+        (Some(bundle), None) => Some(bundle.items.clone()),
+        (None, _) => None,
+    };
+    if let (Some(bundle), Some(items)) = (&phase4, &items) {
         deps.item_catalogue =
             Some(Arc::new(nightfall_api::application::use_cases::RegistryItemCatalogue::new(
-                bundle.items.clone(),
+                items.clone(),
                 &bundle.skills,
             )?));
     }
+    deps.phase5_rules.clone_from(&phase5);
     let mut memory = infrastructure::memory::InMemoryCharacterRepository::default()
         .with_classes(classes.registry.clone());
-    if let Some(bundle) = &phase4 {
-        memory = memory.with_phase4_rules(bundle.items.clone(), bundle.skills.clone())?;
+    if let (Some(bundle), Some(items)) = (&phase4, &items) {
+        memory = memory.with_phase4_rules(items.clone(), bundle.skills.clone())?;
     } else if let Some(rules) = &phase3 {
         memory = memory.with_phase3_rules(rules.clone());
     }
@@ -212,9 +227,8 @@ async fn build_dependencies(
         let mut characters = infrastructure::postgres::PgCharacterRepository::new(conn.clone())
             .with_classes(classes.registry.clone())
             .with_metrics(metrics.clone());
-        if let Some(bundle) = &phase4 {
-            characters =
-                characters.with_phase4_rules(bundle.items.clone(), bundle.skills.clone())?;
+        if let (Some(bundle), Some(items)) = (&phase4, &items) {
+            characters = characters.with_phase4_rules(items.clone(), bundle.skills.clone())?;
         } else if let Some(rules) = &phase3 {
             characters = characters.with_phase3_rules(rules.clone());
         }
@@ -571,7 +585,12 @@ mod tests {
         let block = snapshot.phase5.as_ref().unwrap();
         assert_eq!(block.rules_hash, economy.hash());
         economy.validate_phase4(&bundle.items).unwrap();
-        assert!(deps.item_catalogue.is_some());
+        // Q4: the catalogue is the V7 view under the V6 hash, with the closure templates.
+        let catalogue = deps.item_catalogue.as_ref().unwrap().catalogue().unwrap();
+        assert_eq!(catalogue.hash(), bundle.items.hash());
+        assert!(!bundle.items.parts().items.contains_key(&5125));
+        assert!(catalogue.parts().items.contains_key(&5125), "the Harvester is a closure row");
+        assert_eq!(deps.phase5_rules.as_ref().unwrap().hash(), economy.hash());
         realtime
             .sessions
             .zone
