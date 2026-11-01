@@ -18,8 +18,8 @@ Herbs (P5-D17/P5-D19, Z lane api-inbox 2026-11-01): the 48 herb item skills (her
 `distinct_skill_ids`) are absent from the V6 bundle. A herb skill whose generated row has no
 blocker is an addition with `clears = []` and `runtime_status = "executable"`. A herb skill with a
 blocker outside the constant stays out of the table (its herb stays ITEM_CAPABILITY_DEFERRED); the
-generator reports it with its exact blockers. `HERBS_BOUND` turns the herb rows on once the
-Phase5Rules loader accepts a clean addition (Z lane 3.7, e7afc82).
+generator reports it with its exact blockers. `HERBS_BOUND` turns the herb rows on; the
+Phase5Rules loader accepts a clean addition since Z lane 3.7 (e7afc82).
 """
 from __future__ import annotations
 
@@ -47,8 +47,8 @@ V6_MANIFEST_DATA_SHA256 = 'f0e8dc63a0aa8d013b5c4ecf2c0698d64438f914a2a9bc099b486
 FORMULA_REVISION = 1
 # B11 (architecture decisions §7) and any skill the zone lane names later.
 SKILLS = {254: 'Spoil', 42: 'Sweeper', 2097: 'Sowing', 2098: 'Harvesting'}
-# The herb rows wait for the loader that accepts a clean addition (Z lane e7afc82).
-HERBS_BOUND = False
+# The loader accepts a clean addition since Z lane e7afc82 (merged at f65049b).
+HERBS_BOUND = True
 # The V7 engine's implemented-blocker constant for FORMULA_REVISION (Z lane, api-inbox 2026-11-01).
 V7_IMPLEMENTED_BLOCKERS = frozenset({
     'effect:Spoil', 'effect:Sweeper', 'effect:ConsumeBody', 'cond:player:canSweep', 'target:NPC_BODY',

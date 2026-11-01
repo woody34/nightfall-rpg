@@ -510,10 +510,11 @@ mod tests {
         use crate::domain::zone::skill::SkillId;
         let rules = rules();
         let bundle = super::super::item_data::embedded_phase4_bundle().unwrap();
-        assert_eq!(rules.inventory().skill_promotions, 4);
+        // 2 promotions + Sowing/Harvesting + the 27 clean herb skills (C lane, HERBS_BOUND).
+        assert_eq!(rules.inventory().skill_promotions, 31);
         let view = rules.v7_skills().unwrap();
         assert_eq!(view.hash(), bundle.skills.hash());
-        for id in [254, 42, 2097, 2098] {
+        for id in [254, 42, 2097, 2098, 2244, 2278, 22128] {
             let skill = view.skills().get(SkillId(id)).unwrap();
             assert_eq!(skill.runtime_status, RuntimeSkillStatus::Executable, "{id}");
             assert!(skill.blockers.is_empty(), "{id}");

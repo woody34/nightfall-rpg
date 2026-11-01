@@ -30,7 +30,9 @@ class Contract(unittest.TestCase):
         self.assertEqual((TABLE['schema_version'], TABLE['formula_revision']), (1, 1))
         self.assertEqual(TABLE['v6_skills_sha256'], '5c2378c9eab24f26fdef161c4965dc3567fc05eefe04186cdf095d84cad7f6d1')
         self.assertEqual([r['id'] for r in TABLE['promotions']], [42, 254])
-        self.assertEqual([a['skill']['id'] for a in TABLE['additions']], [2097, 2098])
+        b11 = [a['skill']['id'] for a in TABLE['additions'] if a['skill']['id'] in (2097, 2098)]
+        self.assertEqual(b11, [2097, 2098])
+        self.assertEqual(len(TABLE['additions']), 29, 'B11 Sowing/Harvesting + the 27 clean herb skills')
         self.assertFalse(floats(TABLE))
 
     def test_promotions_clear_exactly_the_v6_blockers(self):
@@ -46,20 +48,23 @@ class Contract(unittest.TestCase):
             skill = row['skill']
             self.assertFalse((DATA / f'skills-phase4/{skill["id"]}.toml').exists())
             self.assertLessEqual(SKILL_KEYS - {'conditions'}, set(skill) | {'conditions'})
-            self.assertEqual(skill['runtime_status'], 'deferred')
+            # A B11 addition is deferred with its blockers; a herb addition is clean (P5-D19 herbs).
+            self.assertEqual(skill['runtime_status'], 'deferred' if row['clears'] else 'executable')
             self.assertEqual(row['clears'], skill['blockers'])
             self.assertLessEqual(set(row['clears']), gen_skill_promotions.V7_IMPLEMENTED_BLOCKERS)
-        self.assertEqual([a['clears'] for a in TABLE['additions']], [['effect:Sow'], ['effect:Harvesting', 'target:NPC_BODY']])
+        b11 = [a['clears'] for a in TABLE['additions'] if a['skill']['id'] in (2097, 2098)]
+        self.assertEqual(b11, [['effect:Sow'], ['effect:Harvesting', 'target:NPC_BODY']])
 
     def test_sources_point_at_the_pinned_skill_lines(self):
         names = {42: 'Sweeper', 254: 'Spoil', 2097: 'Sowing', 2098: 'Harvesting'}
-        for src in TABLE['sources']:
+        for src in [s for s in TABLE['sources'] if s['skill_id'] in names]:
             with self.subTest(skill=src['skill_id']):
                 self.assertEqual(src['revision'], gen_items.DATAPACK_REVISION)
                 line = (DP / src['file']).read_text().splitlines()[src['line'] - 1]
                 self.assertIn(f'<skill id="{src["skill_id"]}"', line)
                 self.assertIn(f'name="{names[src["skill_id"]]}"', line)
-        self.assertEqual({(s['skill_id'], s['line']) for s in TABLE['sources']}, {(42, 1465), (254, 1342), (2097, 1537), (2098, 1558)})
+        self.assertEqual({(s['skill_id'], s['line']) for s in TABLE['sources'] if s['skill_id'] in names}, {(42, 1465), (254, 1342), (2097, 1537), (2098, 1558)})
+        self.assertEqual(len(TABLE['sources']), 31, '4 B11 skills + 27 herb skills')
 
 
 class Herbs(unittest.TestCase):
@@ -80,6 +85,7 @@ class Herbs(unittest.TestCase):
     def setUpClass(cls):
         content, cls.counts = gen_skill_promotions.generate(DP, herbs=True)
         cls.table = tomllib.loads(content)
+        assert cls.table == TABLE, 'HERBS_BOUND: the committed table carries the herb rows'
 
     def test_the_48_skills_split_into_clean_additions_and_reported_blockers(self):
         herbs = gen_skill_promotions.herb_skill_ids()
