@@ -495,6 +495,38 @@ impl SkillRegistry {
             hash: hash.finalize().into(),
         })
     }
+    /// P5-D19: the V7 skill view, this registry with the promoted skills made executable
+    /// (their blockers cleared) and the additions inserted, under THIS registry's hash and
+    /// capability revision (the V6 bytes are unchanged; `Phase5Rules` hashes and validates
+    /// the promotions). `promoted` names skills already present; `added` are new rows.
+    pub fn with_v7_promotions(
+        &self,
+        promoted: &[SkillId],
+        added: &[SkillDef],
+    ) -> Result<Self, String> {
+        let mut skills = self.skills.clone();
+        for id in promoted {
+            let skill = skills
+                .get_mut(id)
+                .ok_or_else(|| format!("promoted skill {} is not in the bundle", id.0))?;
+            skill.runtime_status = RuntimeSkillStatus::Executable;
+            skill.blockers.clear();
+        }
+        for row in added {
+            let mut skill = row.clone();
+            skill.runtime_status = RuntimeSkillStatus::Executable;
+            skill.blockers.clear();
+            if skills.insert(skill.id, skill).is_some() {
+                return Err(format!("added skill {} is already in the bundle", row.id.0));
+            }
+        }
+        Ok(Self {
+            capability_revision: self.capability_revision,
+            skills,
+            hash: self.hash,
+        })
+    }
+
     /// Exact definition by id.
     pub fn get(&self, id: SkillId) -> Option<&SkillDef> {
         self.skills.get(&id)

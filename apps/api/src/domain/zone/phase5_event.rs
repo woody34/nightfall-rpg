@@ -585,9 +585,9 @@ pub struct EconomyCheckpoint {
     /// Every lease the tick's commands release, in bytewise key order and without
     /// duplicates (one whole set per command, design §10.0).
     pub lease_releases: Vec<LeaseKey>,
-    /// Every owner-kind ledger row of the tick's economy operations (design §11.2–§11.3),
-    /// the character side included (P5-Q13): per `(owner, instance)` in T1 order with
-    /// ordinals 0..n-1.
+    /// The non-character owner-kind ledger rows of the tick's economy operations (design
+    /// §11.2–§11.3; ruling P5-D22: character-owner rows join the item projections): per
+    /// `(owner, instance)` in T1 order with ordinals 0..n-1, linked to their peers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ledger: Vec<EconomyLedgerRow>,
 }
@@ -608,6 +608,16 @@ impl EconomyCheckpoint {
             std::collections::BTreeMap::new();
         for row in &self.ledger {
             row.validate()?;
+            // P5-D22: character-owner rows live in the item projections, not here, and a
+            // transfer names its peer row's position.
+            if row.owner_kind == OwnerKind::Character
+                || row
+                    .transfer
+                    .as_ref()
+                    .is_some_and(|t| t.peer_ordinal.is_none())
+            {
+                return Err(ItemError("economy checkpoint row of a character owner or unlinked"));
+            }
             let (next, class) = chains
                 .entry((row.owner_kind, row.owner, row.instance))
                 .or_insert((0, 0));
@@ -689,6 +699,10 @@ pub struct TransferRef {
     pub peer_owner_kind: OwnerKind,
     pub peer_owner: uuid::Uuid,
     pub peer_instance: ItemInstanceId,
+    /// P5-D22: the peer row's position among its instance's rows. A character peer row
+    /// lives in the owner's item projection ledger (normalized by D66); every other peer
+    /// is a row of this checkpoint.
+    pub peer_ordinal: Option<u32>,
 }
 
 /// One owner-kind ledger row (the API's `OwnerLedgerRow` without the zone/epoch/tick and
@@ -957,7 +971,8 @@ pub(crate) mod samples {
         }
     }
 
-    /// A solo identity pickup: the ground `transfer_out` and the picker's `transfer_in`.
+    /// NPC loot created and picked up in one tick: the ground `loot` row, then the ground
+    /// `transfer_out` linked to the picker's `transfer_in` at position 0 of its projection.
     pub(crate) fn pickup_pair() -> Vec<EconomyLedgerRow> {
         let item = |location| super::super::ItemInstance {
             creation_origin: Some(super::super::ItemCreationOrigin {
@@ -976,48 +991,40 @@ pub(crate) mod samples {
             revision: 0,
         };
         let ground = uuid::Uuid::from_u128(900);
-        let picker = uuid::Uuid::from_u128(1);
-        let link = transfer_link("00000000-0000-0000-0000-000000000063", 0);
-        let receipt = Some("receipt:pick_up_item:00000000-0000-0000-0000-000000000063".to_owned());
-        let mut taken = item(super::super::ItemLocation::Inventory);
-        taken.revision = 2;
         vec![
             EconomyLedgerRow {
                 owner_kind: OwnerKind::Ground,
                 owner: ground,
                 instance: ItemInstanceId::new(7).unwrap(),
-                op: LedgerOp::TransferOut,
+                op: LedgerOp::Loot,
                 operation_ordinal: 0,
+                count_delta: 120,
+                before: None,
+                after: Some(item(super::super::ItemLocation::Ground)),
+                transfer: None,
+                receipt: None,
+                causes: vec!["loot:00000000-0000-0000-0000-000000000384@3".to_owned()],
+            },
+            EconomyLedgerRow {
+                owner_kind: OwnerKind::Ground,
+                owner: ground,
+                instance: ItemInstanceId::new(7).unwrap(),
+                op: LedgerOp::TransferOut,
+                operation_ordinal: 1,
                 count_delta: -120,
                 before: Some(item(super::super::ItemLocation::Ground)),
                 after: None,
                 transfer: Some(TransferRef {
-                    link,
+                    link: transfer_link("00000000-0000-0000-0000-000000000063", 0),
                     mode: TransferMode::Identity,
                     peer_owner_kind: OwnerKind::Character,
-                    peer_owner: picker,
+                    peer_owner: uuid::Uuid::from_u128(1),
                     peer_instance: ItemInstanceId::new(7).unwrap(),
+                    peer_ordinal: Some(0),
                 }),
-                receipt: receipt.clone(),
-                causes: Vec::new(),
-            },
-            EconomyLedgerRow {
-                owner_kind: OwnerKind::Character,
-                owner: picker,
-                instance: ItemInstanceId::new(7).unwrap(),
-                op: LedgerOp::TransferIn,
-                operation_ordinal: 0,
-                count_delta: 120,
-                before: None,
-                after: Some(taken),
-                transfer: Some(TransferRef {
-                    link,
-                    mode: TransferMode::Identity,
-                    peer_owner_kind: OwnerKind::Ground,
-                    peer_owner: ground,
-                    peer_instance: ItemInstanceId::new(7).unwrap(),
-                }),
-                receipt,
+                receipt: Some(
+                    "receipt:pick_up_item:00000000-0000-0000-0000-000000000063".to_owned(),
+                ),
                 causes: Vec::new(),
             },
         ]
@@ -1130,7 +1137,7 @@ mod tests {
         assert!(unsorted.validate().is_err(), "duplicates are refused");
     }
 
-    /// Rule T1 and per-row structure of the economy ledger (design §11.2, P5-Q13).
+    /// Rule T1 and per-row structure of the economy ledger (design §11.2, P5-D22).
     #[test]
     fn economy_ledger_rows_follow_t1_and_fail_closed() {
         let good = samples::checkpoint();
@@ -1142,29 +1149,33 @@ mod tests {
         );
         // Ordinals are per (owner, instance) positions from 0.
         let mut gap = good.clone();
-        gap.ledger[1].operation_ordinal = 1;
+        gap.ledger[1].operation_ordinal = 2;
         assert!(gap.validate().is_err());
         // Nothing follows a terminal row of the same chain.
         let mut after_terminal = good.clone();
-        let mut extra = after_terminal.ledger[0].clone();
-        extra.operation_ordinal = 1;
+        let mut extra = after_terminal.ledger[1].clone();
+        extra.operation_ordinal = 2;
         extra.op = LedgerOp::Destroy;
-        after_terminal.ledger.insert(1, extra);
+        extra.transfer = None;
+        after_terminal.ledger.push(extra);
         assert!(after_terminal.validate().is_err());
         // Counts must match the delta; a row needs a receipt or a cause and a real change.
         let mut delta = good.clone();
-        delta.ledger[1].count_delta = 119;
+        delta.ledger[0].count_delta = 119;
         assert!(delta.validate().is_err());
         let mut causeless = good.clone();
-        causeless.ledger[0].receipt = None;
+        causeless.ledger[1].receipt = None;
         assert!(causeless.validate().is_err());
-        let mut empty = good.clone();
-        empty.ledger[1].after = None;
-        empty.ledger[1].count_delta = 0;
-        assert!(empty.validate().is_err());
-        let mut wrong = good;
-        wrong.ledger[1].instance = ItemInstanceId::new(8).unwrap();
+        let mut wrong = good.clone();
+        wrong.ledger[0].instance = ItemInstanceId::new(8).unwrap();
         assert!(wrong.validate().is_err());
+        // P5-D22: character-owner rows live in the item projections; links name a position.
+        let mut character = good.clone();
+        character.ledger[0].owner_kind = OwnerKind::Character;
+        assert!(character.validate().is_err());
+        let mut unlinked = good;
+        unlinked.ledger[1].transfer.as_mut().unwrap().peer_ordinal = None;
+        assert!(unlinked.validate().is_err());
     }
 
     #[test]

@@ -22,6 +22,40 @@ pub enum ItemOperation {
     Exchange,
     Use,
     ToggleAutoShot,
+    // P5-D22 (V7 only; their names are refused in every Record ≤ 8 payload): the
+    // character-owner rows of economy operations (design §11.3) in the projection ledger.
+    TransferOut,
+    TransferIn,
+    PartySplit,
+    Sweep,
+    Harvest,
+    Purchase,
+    SaleProceeds,
+    Craft,
+    CodCredit,
+    AuctionAward,
+    ManorReward,
+}
+
+impl ItemOperation {
+    /// The V7 economy character-owner operations (P5-D22).
+    #[must_use]
+    pub const fn is_economy(self) -> bool {
+        matches!(
+            self,
+            Self::TransferOut
+                | Self::TransferIn
+                | Self::PartySplit
+                | Self::Sweep
+                | Self::Harvest
+                | Self::Purchase
+                | Self::SaleProceeds
+                | Self::Craft
+                | Self::CodCredit
+                | Self::AuctionAward
+                | Self::ManorReward
+        )
+    }
 }
 
 /// Account is supplied by the enclosing projection; the request operation may differ

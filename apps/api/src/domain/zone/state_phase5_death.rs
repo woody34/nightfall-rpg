@@ -330,6 +330,16 @@ impl ZoneState {
                 sidecar.sweep = (!sweep.is_empty()).then_some(sweep);
             }
         }
+        // §5.3: `CorpseStateChanged` at death when the corpse is spoiled or seeded.
+        if spoiled
+            || self
+                .phase5
+                .as_ref()
+                .and_then(|p| p.canonical.npcs.get(&victim))
+                .is_some_and(|n| n.seeded)
+        {
+            self.corpse_state_v7(tick, victim, false, events);
+        }
         let holders = roll_list(&rules, npc, DropScope::Death, victim_facts, killer_level, self)?;
         for holder in holders {
             self.spawn_npc_loot(tick, victim, origin, actor, raid, holder, &rules, events)?;

@@ -106,6 +106,14 @@ impl ZoneState {
         let items = Arc::clone(economy.v7_items().ok_or_else(|| {
             SnapshotError::Rules("V7 economy rules without the bound closure items".into())
         })?);
+        // P5-D19: and on the V7 skill view (V6 skills ∪ promotions, same Phase 3 hash).
+        let view = economy.v7_skills().ok_or_else(|| {
+            SnapshotError::Rules("V7 economy rules without the bound skill promotions".into())
+        })?;
+        if view.hash() != skills.hash() {
+            return Err(SnapshotError::Rules("V7 skill view of another bundle".into()));
+        }
+        let skills = (**view).clone();
         let mut state = Self::new_phase4(
             seed,
             bounds,

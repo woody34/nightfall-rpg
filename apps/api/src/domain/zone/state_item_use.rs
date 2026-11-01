@@ -401,6 +401,7 @@ impl ZoneState {
                         count: plan.clicked_count,
                         skill_ordinal: *ordinal,
                         receipt: reference,
+                        herb: false,
                     },
                     *simultaneous,
                 )),

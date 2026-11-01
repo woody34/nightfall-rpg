@@ -22,6 +22,25 @@ use crate::domain::zone::{
 /// the engine's player collision radius 0 (adaptation X13).
 const PICKUP_RANGE_MILLI: i64 = 1_125;
 
+/// One character-owner economy row (P5-D22) before it joins the projection ledger.
+pub(super) struct CharacterRow<'a> {
+    pub(super) operation: crate::domain::zone::phase4_projection::ItemOperation,
+    pub(super) before: Option<ItemInstance>,
+    pub(super) after: ItemInstance,
+    pub(super) count_delta: i64,
+    pub(super) receipt: Option<&'a str>,
+    pub(super) cause: Option<String>,
+    pub(super) transfer: Option<TransferRef>,
+}
+
+/// The serde name of a unit enum value (`snake_case`), for audit text.
+fn enum_text<T: serde::Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
 /// One recipient's payout of a pickup.
 struct Payout {
     recipient: EntityId,
@@ -40,6 +59,16 @@ enum Landing {
 
 fn invalid<E>(_: E) -> RejectReason {
     RejectReason::InvalidLoad
+}
+
+fn items_player(
+    zone: &ZoneState,
+    id: EntityId,
+) -> Result<&crate::domain::zone::Phase4Player, RejectReason> {
+    zone.phase4
+        .as_ref()
+        .and_then(|items| items.canonical.players.get(&id))
+        .ok_or(RejectReason::InvalidLoad)
 }
 
 fn square(x: i64) -> i64 {
@@ -119,10 +148,9 @@ impl ZoneState {
         }
         let rules = std::sync::Arc::clone(&phase5.rules);
         let template = ground.item.template_id;
-        if rules.is_herb(template) {
-            // Story 3.5c: herb skills execute on pickup (§4.3).
-            return Err(RejectReason::NotYetImplemented);
-        }
+        // §4.3: herbs never occupy a slot (`validateCapacity` exempts them) and are never
+        // distributed; their skills run on the picker.
+        let herb = rules.is_herb(template);
         let party = self
             .party_of_player(actor)
             .and_then(|id| phase5.canonical.parties.get(&id))
@@ -152,9 +180,10 @@ impl ZoneState {
             .copied()
             .ok_or(RejectReason::InvalidLoad)?;
         // 4b. Capacity, solo or FINDERS_KEEPERS only: slots, not weight (rule P7).
-        if party
-            .as_ref()
-            .is_none_or(|p| p.distribution == LootMode::FindersKeepers)
+        if !herb
+            && party
+                .as_ref()
+                .is_none_or(|p| p.distribution == LootMode::FindersKeepers)
         {
             let player = items
                 .canonical
@@ -185,6 +214,9 @@ impl ZoneState {
             if owner.owner != actor && !(online && self.same_party(owner.owner, actor)) {
                 return Err(RejectReason::GroundItemProtected);
             }
+        }
+        if herb {
+            return self.pick_up_herb(tick, actor, &ground, command, seq, events);
         }
         // Distribution plan (`L2Party.distributeItem`, §4.2).
         let count = ground.item.count;
@@ -243,6 +275,31 @@ impl ZoneState {
                         return Err(reason);
                     }
                 }
+            }
+            // z-review-4 P2-1: every fresh instance the payouts need is allocatable before
+            // anything changes (Phase 4 I1); an exhausted range refuses like a V6 grant.
+            let fresh = recipients
+                .iter()
+                .zip(&shares)
+                .filter(|(_, share)| **share > 0)
+                .map(|(recipient, share)| {
+                    let player = items_player(self, *recipient)?;
+                    Ok(if stackable {
+                        u64::from(merge_target(&player.inventory, template).is_none())
+                    } else {
+                        *share
+                    })
+                })
+                .try_fold(0_u64, |total, n: Result<u64, RejectReason>| {
+                    n.map(|n| total.saturating_add(n))
+                });
+            let available = self.phase4.as_ref().map_or(0, |items| {
+                let (_, next, end) = items.canonical.allocator.bounds();
+                end.saturating_sub(next)
+            });
+            if fresh.as_ref().is_ok_and(|needed| *needed > available) || fresh.is_err() {
+                (self.rng, self.evidence) = rewind;
+                return Err(fresh.err().unwrap_or(RejectReason::InventoryFull));
             }
             for (recipient, share) in recipients.into_iter().zip(shares) {
                 if share > 0 {
@@ -383,19 +440,21 @@ impl ZoneState {
             };
             let count_delta = i64::try_from(payout.count).map_err(invalid)?;
             if even {
-                self.push_ledger(EconomyLedgerRow {
-                    owner_kind: OwnerKind::Character,
-                    owner: payout.recipient.as_uuid(),
-                    instance: after.id,
-                    op: LedgerOp::PartySplit,
-                    operation_ordinal: 0,
-                    count_delta,
-                    before,
-                    after: Some(after),
-                    transfer: None,
-                    receipt: Some(receipt.clone()),
-                    causes: vec![format!("party_split:{resolution}")],
-                });
+                self.push_character_row(
+                    tick,
+                    payout.recipient,
+                    CharacterRow {
+                        operation:
+                            crate::domain::zone::phase4_projection::ItemOperation::PartySplit,
+                        before,
+                        after,
+                        count_delta,
+                        receipt: Some(&receipt),
+                        cause: Some(format!("party_split:{resolution}")),
+                        transfer: None,
+                    },
+                    events,
+                )?;
             } else {
                 let causes = party
                     .as_ref()
@@ -416,29 +475,35 @@ impl ZoneState {
                         peer_owner_kind: OwnerKind::Character,
                         peer_owner: payout.recipient.as_uuid(),
                         peer_instance: after.id,
+                        // Resolved after D66 normalization, at the tick flush (P5-D22).
+                        peer_ordinal: None,
                     }),
                     receipt: Some(receipt.clone()),
                     causes: causes.clone(),
                 });
-                self.push_ledger(EconomyLedgerRow {
-                    owner_kind: OwnerKind::Character,
-                    owner: payout.recipient.as_uuid(),
-                    instance: after.id,
-                    op: LedgerOp::TransferIn,
-                    operation_ordinal: 0,
-                    count_delta,
-                    before,
-                    after: Some(after),
-                    transfer: Some(TransferRef {
-                        link,
-                        mode,
-                        peer_owner_kind: OwnerKind::Ground,
-                        peer_owner: ground_owner,
-                        peer_instance: ground.item.id,
-                    }),
-                    receipt: Some(receipt.clone()),
-                    causes,
-                });
+                self.push_character_row(
+                    tick,
+                    payout.recipient,
+                    CharacterRow {
+                        operation:
+                            crate::domain::zone::phase4_projection::ItemOperation::TransferIn,
+                        before,
+                        after,
+                        count_delta,
+                        receipt: Some(&receipt),
+                        cause: causes.first().cloned(),
+                        transfer: Some(TransferRef {
+                            link,
+                            mode,
+                            peer_owner_kind: OwnerKind::Ground,
+                            peer_owner: ground_owner,
+                            peer_instance: ground.item.id,
+                            // The ground row's link names this row's position instead.
+                            peer_ordinal: None,
+                        }),
+                    },
+                    events,
+                )?;
             }
             ordinal = ordinal.saturating_add(1);
         }
@@ -487,6 +552,235 @@ impl ZoneState {
             events,
         );
         Ok(())
+    }
+
+    /// The item skills a herb runs (`ItemSkillsTemplate.useItem`), in `item_skill` list order:
+    /// `(skill, xml_ordinal, simultaneous)`. A handler-less herb runs none. A herb whose
+    /// template or any skill is not executable refuses `ITEM_CAPABILITY_DEFERRED` (§4.1 step
+    /// 4), before anything is removed.
+    fn herb_skills(
+        &self,
+        template: u32,
+    ) -> Result<Vec<(crate::domain::zone::skill::SkillRef, u32, bool)>, RejectReason> {
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let definition = items
+            .rules
+            .parts()
+            .items
+            .get(&template)
+            .ok_or(RejectReason::InvalidLoad)?;
+        if definition.handler != "ItemSkills" {
+            return Ok(Vec::new());
+        }
+        // Pinned herbs have no item-level reuse (every herb: reuse_delay 0, no shared
+        // group); one that had would need the D79 revision step, so it fails closed.
+        if definition.reuse_delay != 0 || definition.shared_reuse_group > 0 {
+            return Err(RejectReason::ItemCapabilityDeferred);
+        }
+        if items
+            .rules
+            .parts()
+            .capabilities
+            .get(&template)
+            .is_none_or(|cap| !cap.admitted || !cap.use_blockers.is_empty())
+        {
+            return Err(RejectReason::ItemCapabilityDeferred);
+        }
+        let mut skills = Vec::new();
+        for source in definition.skills.iter().filter(|s| s.kind == "item") {
+            let reference = crate::domain::zone::skill::SkillRef {
+                id: crate::domain::zone::skill::SkillId(source.id),
+                rank: source.level,
+            };
+            let skill = phase
+                .canonical
+                .rules
+                .skills()
+                .get(reference.id)
+                .ok_or(RejectReason::ItemCapabilityDeferred)?;
+            if items
+                .rules
+                .parts()
+                .skill_capabilities
+                .get(&source.id)
+                .is_none_or(|cap| !cap.admitted)
+                || reference.rank == 0
+                || reference.rank > skill.max_level
+            {
+                return Err(RejectReason::ItemCapabilityDeferred);
+            }
+            let simultaneous =
+                crate::domain::zone::item_cast::simultaneous(definition, skill, source.level)
+                    .map_err(invalid)?;
+            skills.push((reference, source.xml_ordinal, simultaneous));
+        }
+        Ok(skills)
+    }
+
+    /// §4.3 herb pickup: the herb is destroyed whatever happens (`destroyItem("Consume")`),
+    /// with a ground `destroy` row (`herb:<receipt>`); its skills then run on the picker in
+    /// list order until the first failing check (item reuse is vacuous for pinned herbs;
+    /// `checkCondition`, `isSkillDisabled` and the skill's own reuse, keyed by id **and**
+    /// level). Each runs through the Phase 4 item-cast path as an immediate item-origin skill
+    /// with the P5-D17 `herb` origin marker.
+    #[allow(clippy::too_many_arguments)] // The pickup's explicit inputs.
+    fn pick_up_herb(
+        &mut self,
+        tick: Tick,
+        actor: EntityId,
+        ground: &GroundItem,
+        command: &Phase5Command,
+        seq: Option<u32>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
+        let skills = self.herb_skills(ground.item.template_id)?;
+        let key = command.request_key();
+        let receipt = format!("receipt:pick_up_item:{key}");
+        if let Some(phase5) = &mut self.phase5 {
+            phase5.canonical.ground.remove(&ground.entity);
+        }
+        events.extend(self.despawn(tick, ground.entity));
+        self.push_ledger(EconomyLedgerRow {
+            owner_kind: OwnerKind::Ground,
+            owner: ground.entity.as_uuid(),
+            instance: ground.item.id,
+            op: LedgerOp::Destroy,
+            operation_ordinal: 0,
+            count_delta: i64::try_from(ground.item.count)
+                .map_err(invalid)?
+                .saturating_neg(),
+            before: Some(ground.item.clone()),
+            after: None,
+            transfer: None,
+            receipt: Some(receipt.clone()),
+            causes: vec![format!("herb:{receipt}")],
+        });
+        let caster = self.binding(actor).ok_or(RejectReason::InvalidLoad)?;
+        for (reference, xml_ordinal, simultaneous) in skills {
+            // checkReuse, keyed by (id, level) like pinned `getReuseHashCode` (§4.3).
+            if self.herb_reuse_active(actor, reference, tick) {
+                break;
+            }
+            let Some(definition) = self
+                .phase3
+                .as_ref()
+                .and_then(|p| p.canonical.rules.skills().get(reference.id))
+                .cloned()
+            else {
+                break;
+            };
+            let started = self.start_defined_cast_v6(
+                tick,
+                &crate::domain::zone::state_skill::StagedCast {
+                    ordinal: self.next_ordinal,
+                    caster,
+                    skill_id: reference.id,
+                    target: Some(crate::domain::zone::state_skill::CapturedTarget {
+                        entity: actor,
+                        incarnation: Some(caster.incarnation),
+                    }),
+                    canceled: None,
+                },
+                &definition,
+                reference,
+                Some((
+                    crate::domain::zone::phase4::ItemCastOrigin {
+                        instance: ground.item.id,
+                        template: ground.item.template_id,
+                        count: 0,
+                        skill_ordinal: xml_ordinal,
+                        receipt: crate::domain::zone::phase4_projection::ItemReceiptRef {
+                            operation: crate::domain::zone::phase4_projection::ItemOperation::Use,
+                            key,
+                        },
+                        herb: true,
+                    },
+                    simultaneous,
+                )),
+                None,
+                events,
+            );
+            // Early abort: the first failing check abandons this and every later skill.
+            if started.is_err() {
+                break;
+            }
+            let reuse_ms = definition
+                .reuse_ms
+                .at(reference.rank, definition.max_level)
+                .copied()
+                .and_then(|ms| u64::try_from(ms).ok())
+                .unwrap_or(0);
+            self.stamp_herb_reuse(actor, reference, tick, reuse_ms);
+        }
+        self.economy_receipt(
+            tick,
+            actor,
+            command,
+            seq,
+            EconomyScope::PickUpItem,
+            Vec::new(),
+            EconomyOutcome::Pickup {
+                template_id: ground.item.template_id,
+                count: ground.item.count,
+                recipient: actor,
+                herb: true,
+                split: false,
+            },
+            events,
+        );
+        Ok(())
+    }
+
+    fn herb_reuse_active(
+        &self,
+        actor: EntityId,
+        skill: crate::domain::zone::skill::SkillRef,
+        tick: Tick,
+    ) -> bool {
+        self.phase5
+            .as_ref()
+            .and_then(|p| p.canonical.players.get(&actor))
+            .is_some_and(|player| {
+                player
+                    .herb_reuse
+                    .iter()
+                    .any(|r| r.skill == skill.id.0 && r.level == skill.rank && r.until > tick)
+            })
+    }
+
+    /// `addTimeStamp` for a cast herb skill with `reuseDelay > 0` (46 of the 48 herb skills,
+    /// 2,000 ms = 20 ticks); expired entries are dropped at the same time.
+    fn stamp_herb_reuse(
+        &mut self,
+        actor: EntityId,
+        skill: crate::domain::zone::skill::SkillRef,
+        tick: Tick,
+        reuse_ms: u64,
+    ) {
+        let Some(player) = self
+            .phase5
+            .as_mut()
+            .and_then(|p| p.canonical.players.get_mut(&actor))
+        else {
+            return;
+        };
+        player.herb_reuse.retain(|r| r.until > tick);
+        if reuse_ms == 0 {
+            return;
+        }
+        let until = Tick(tick.0.saturating_add(reuse_ms.div_ceil(100)));
+        player
+            .herb_reuse
+            .retain(|r| !(r.skill == skill.id.0 && r.level == skill.rank));
+        player
+            .herb_reuse
+            .push(crate::domain::zone::phase5::HerbReuse {
+                skill: skill.id.0,
+                level: skill.rank,
+                until,
+            });
+        player.herb_reuse.sort_by_key(|r| (r.skill, r.level));
     }
 
     fn party_of_player(&self, id: EntityId) -> Option<crate::domain::zone::phase5::PartyId> {
@@ -649,35 +943,31 @@ impl ZoneState {
         Ok(())
     }
 
-    /// Ensure every live owner changed by an economy operation this tick has its
-    /// `ItemCheckpoint` projection (refreshed at the tick boundary by `freeze_items_v6`).
-    pub(super) fn ensure_economy_projections(
+    /// P5-D22: a character-owner economy row joins the owner's `ItemCheckpoint` projection
+    /// ledger (created when the tick has none yet), so one D66 normalizer orders it with the
+    /// V6 rows. Its receipt, cause and transfer link ride an `economy` audit cause.
+    pub(super) fn push_character_row(
         &self,
         tick: Tick,
+        owner: EntityId,
+        row: CharacterRow<'_>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
-        let Some(phase5) = &self.phase5 else {
-            return Ok(());
+        use crate::domain::zone::phase4_projection::{
+            ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue as V,
         };
-        let owners: std::collections::BTreeSet<EntityId> = phase5
-            .ledger
+        let index = if let Some(index) = events
             .iter()
-            .filter(|row| row.owner_kind == OwnerKind::Character)
-            .map(|row| EntityId::from_uuid(row.owner))
-            .collect();
-        for id in owners {
-            if events
-                .iter()
-                .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(p) if p.entity == id))
-            {
-                continue;
-            }
+            .position(|e| matches!(e, ZoneEvent::ItemCheckpoint(p) if p.entity == owner))
+        {
+            index
+        } else {
             let Some(CombatRole::Player {
                 progression: Some(progression),
                 ..
             }) = self
                 .entities
-                .get(&id)
+                .get(&owner)
                 .and_then(|e| e.combat.as_ref())
                 .map(|c| &c.role)
             else {
@@ -693,7 +983,7 @@ impl ZoneState {
                 .as_ref()
                 .ok_or(RejectReason::InvalidLoad)?
                 .canonical
-                .checkpoint(id, tick, phase)
+                .checkpoint(owner, tick, phase)
                 .map_err(invalid)?;
             events.push(ZoneEvent::ItemCheckpoint(Box::new(Phase4Projection {
                 enchant_attempts: Vec::new(),
@@ -701,7 +991,7 @@ impl ZoneState {
                 refines: Vec::new(),
                 paused_core: None,
                 tick,
-                entity: id,
+                entity: owner,
                 account: progression.identity.account_id,
                 checkpoint,
                 ledger: Vec::new(),
@@ -709,7 +999,43 @@ impl ZoneState {
                 materializations: Vec::new(),
                 evidence: Vec::new(),
             })));
+            events.len().saturating_sub(1)
+        };
+        let Some(ZoneEvent::ItemCheckpoint(projection)) = events.get_mut(index) else {
+            return Err(RejectReason::InvalidLoad);
+        };
+        let mut fields = BTreeMap::new();
+        if let Some(receipt) = row.receipt {
+            fields.insert("receipt".to_owned(), V::Text(receipt.to_owned()));
         }
+        if let Some(cause) = row.cause {
+            fields.insert("cause".into(), V::Text(cause));
+        }
+        if let Some(transfer) = &row.transfer {
+            fields.insert("link".into(), V::Text(transfer.link.to_string()));
+            fields.insert("mode".into(), V::Text(enum_text(&transfer.mode)));
+            fields.insert("peer_owner_kind".into(), V::Text(enum_text(&transfer.peer_owner_kind)));
+            fields.insert("peer_owner".into(), V::Text(transfer.peer_owner.to_string()));
+            fields.insert("peer_instance".into(), V::Unsigned(transfer.peer_instance.get()));
+            if let Some(ordinal) = transfer.peer_ordinal {
+                fields.insert("peer_ordinal".into(), V::Unsigned(u64::from(ordinal)));
+            }
+        }
+        let operation_ordinal = projection.next_operation_ordinal().map_err(invalid)?;
+        projection.ledger.push(ItemDeltaPlan {
+            operation: row.operation,
+            operation_ordinal,
+            instance: row.after.id,
+            before: row.before,
+            after: Some(row.after),
+            count_delta: row.count_delta,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![ItemAuditEvidence {
+                family: "economy".into(),
+                fields,
+            }],
+        });
         Ok(())
     }
 
@@ -720,10 +1046,13 @@ impl ZoneState {
         }
     }
 
-    /// The tick boundary: per `(owner, instance)` chain, rows take rule T1 order (stable:
-    /// non-terminal, the Consume aggregate, the terminal row) and ordinals 0..n-1; chains
-    /// keep their first-appearance order. Emits one `EconomyCheckpoint` when any row exists.
+    /// The tick boundary (after D66 normalization of the projections): per `(owner,
+    /// instance)` chain of the non-character owners, rows take rule T1 order (stable:
+    /// non-terminal, then the terminal row) and ordinals 0..n-1; chains keep their
+    /// first-appearance order. A transfer whose peer is a character row gets that row's
+    /// normalized position (P5-D22). Emits one `EconomyCheckpoint` when any row exists.
     pub(super) fn flush_economy_ledger(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) {
+        use crate::domain::zone::phase4_projection::ItemEvidenceValue as V;
         let Some(phase5) = &mut self.phase5 else {
             return;
         };
@@ -731,10 +1060,34 @@ impl ZoneState {
         if rows.is_empty() {
             return;
         }
+        let peer_position = |owner: uuid::Uuid, link: uuid::Uuid| -> Option<u32> {
+            events.iter().find_map(|e| {
+                let ZoneEvent::ItemCheckpoint(p) = e else {
+                    return None;
+                };
+                if p.entity.as_uuid() != owner {
+                    return None;
+                }
+                p.ledger.iter().find_map(|row| {
+                    row.causes
+                        .iter()
+                        .any(|c| {
+                            c.family == "economy"
+                                && c.fields.get("link") == Some(&V::Text(link.to_string()))
+                        })
+                        .then_some(row.operation_ordinal)
+                })
+            })
+        };
         let mut order = Vec::new();
         let mut chains: BTreeMap<(OwnerKind, uuid::Uuid, ItemInstanceId), Vec<EconomyLedgerRow>> =
             BTreeMap::new();
-        for row in rows {
+        for mut row in rows {
+            if let Some(transfer) = &mut row.transfer {
+                if transfer.peer_owner_kind == OwnerKind::Character {
+                    transfer.peer_ordinal = peer_position(transfer.peer_owner, transfer.link);
+                }
+            }
             let key = (row.owner_kind, row.owner, row.instance);
             if !chains.contains_key(&key) {
                 order.push(key);
@@ -809,6 +1162,7 @@ mod tests {
     use super::super::item_materialize::tests::{fresh_zone_and_kit_load, spawn_kit};
     use super::super::Spawned;
     use super::*;
+    use crate::domain::zone::phase4_projection::ItemOperation;
     use crate::domain::zone::phase5::{DropProtect, GroundSource, LootOwner, Party, PartyId};
     use crate::domain::zone::{
         ItemCreationOrigin, SessionGeneration, Speed, Vec2Fixed, ZoneCommand, ZoneInput,
@@ -959,6 +1313,36 @@ mod tests {
             .collect()
     }
 
+    /// The owner's P5-D22 economy rows in its item projection, after D66.
+    fn character_rows(
+        tick: &crate::domain::zone::AppliedTick,
+        who: u128,
+    ) -> Vec<crate::domain::zone::phase4_projection::ItemDeltaPlan> {
+        tick.events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) if p.entity == id(who) => Some(p.ledger.clone()),
+                _ => None,
+            })
+            .flatten()
+            .filter(|row| row.operation.is_economy())
+            .collect()
+    }
+
+    fn evidence(
+        row: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+        field: &str,
+    ) -> Option<String> {
+        use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+        row.causes
+            .iter()
+            .find(|c| c.family == "economy")
+            .and_then(|c| match c.fields.get(field) {
+                Some(ItemEvidenceValue::Text(text)) => Some(text.clone()),
+                _ => None,
+            })
+    }
+
     fn holding(zone: &ZoneState, who: u128, template: u32) -> u64 {
         zone.phase4.as_ref().unwrap().canonical.players[&id(who)]
             .inventory
@@ -1025,29 +1409,34 @@ mod tests {
             }
         );
         assert_eq!(receipt.1, format!("receipt:pick_up_item:{}", uuid::Uuid::from_u128(1)));
+        // P5-D22: the ground row is in the economy checkpoint, the picker's row in its
+        // item projection ledger (normalized with the V6 rows), linked by NS_XFER.
         let rows = ledger(&tick);
-        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.len(), 1);
         assert_eq!(
             (rows[0].owner_kind, rows[0].op, rows[0].count_delta),
             (OwnerKind::Ground, LedgerOp::TransferOut, -120)
         );
+        let mine = character_rows(&tick, P1);
+        assert_eq!(mine.len(), 1);
+        let row = &mine[0];
         assert_eq!(
-            (rows[1].owner_kind, rows[1].op, rows[1].instance),
-            (OwnerKind::Character, LedgerOp::TransferIn, item.id)
+            (row.operation, row.instance, row.operation_ordinal),
+            (ItemOperation::TransferIn, item.id, 0)
         );
-        assert_eq!(
-            rows[0].transfer.as_ref().unwrap().link,
-            rows[1].transfer.as_ref().unwrap().link
-        );
-        assert_eq!(rows[1].transfer.as_ref().unwrap().mode, TransferMode::Identity);
+        let transfer = rows[0].transfer.as_ref().unwrap();
+        assert_eq!(transfer.peer_ordinal, Some(0));
+        assert_eq!(transfer.mode, TransferMode::Identity);
+        assert_eq!(evidence(row, "link"), Some(transfer.link.to_string()));
+        assert_eq!(evidence(row, "mode").as_deref(), Some("identity"));
         // A second adena pile merges into the stack.
         let second = drop(&mut zone, 57, 5, here(), None);
         let tick = pickup(&mut zone, P1, 2, second);
         assert!(tick.dispositions.is_empty());
         assert_eq!(holding(&zone, P1, 57), 125);
-        let rows = ledger(&tick);
-        assert_eq!(rows[1].transfer.as_ref().unwrap().mode, TransferMode::Merge);
-        assert_eq!((rows[1].before.as_ref().unwrap().count, rows[1].count_delta), (120, 5));
+        let mine = character_rows(&tick, P1);
+        assert_eq!(evidence(&mine[0], "mode").as_deref(), Some("merge"));
+        assert_eq!((mine[0].before.as_ref().unwrap().count, mine[0].count_delta), (120, 5));
     }
 
     /// §4.1 check order: not found, out of range, `DropProtection`, loot owner, dead actor; a
@@ -1120,6 +1509,53 @@ mod tests {
         assert_eq!(holding(&zone, P1, 57), 10);
     }
 
+    /// §4.3 herbs: a handler-less herb (10213) is destroyed with no effect, a ground
+    /// `destroy` row (`herb:<receipt>`) and a herb receipt, and occupies no slot; a handled herb
+    /// whose skills are not executable yet (8600: skill 2278 is outside the V6 skill bundle
+    /// until the P5-D19 promotions land) refuses `ITEM_CAPABILITY_DEFERRED` before removal.
+    #[test]
+    fn herbs_are_destroyed_on_pickup_or_refused_while_deferred() {
+        let mut zone = zone();
+        let before = zone.phase4.as_ref().unwrap().canonical.players[&id(P1)].clone();
+        let plain = drop(&mut zone, 10213, 1, here(), None);
+        let tick = pickup(&mut zone, P1, 1, plain);
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert!(!zone.entities.contains_key(&plain));
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&id(P1)].inventory,
+            before.inventory,
+            "a herb never enters the inventory"
+        );
+        let rows = ledger(&tick);
+        assert_eq!(rows.len(), 1);
+        assert_eq!((rows[0].owner_kind, rows[0].op), (OwnerKind::Ground, LedgerOp::Destroy));
+        assert_eq!(
+            rows[0].causes,
+            vec![format!(
+                "herb:receipt:pick_up_item:{}",
+                uuid::Uuid::from_u128(1)
+            )]
+        );
+        assert!(tick.events.iter().any(|e| matches!(
+            e,
+            ZoneEvent::Economy(ev) if matches!(
+                ev.body,
+                EconomyBody::EconomyResult { outcome: EconomyOutcome::Pickup { herb: true, .. }, .. }
+            )
+        )));
+        let handled = drop(&mut zone, 8600, 1, here(), None);
+        let tick = pickup(&mut zone, P1, 2, handled);
+        assert_eq!(
+            tick.dispositions
+                .iter()
+                .map(|d| d.reason)
+                .collect::<Vec<_>>(),
+            vec![RejectReason::ItemCapabilityDeferred]
+        );
+        assert!(zone.entities.contains_key(&handled));
+        assert!(ledger(&tick).is_empty());
+    }
+
     /// D68: a pickup that would exceed `MaxAdena` is refused before any change.
     #[test]
     fn pickup_over_the_adena_cap_is_refused() {
@@ -1156,6 +1592,34 @@ mod tests {
         assert!(zone.entities.contains_key(&pile));
     }
 
+    /// z-review-4 P2-1: an even split whose fresh instances do not all fit the allocator
+    /// range refuses with no change at all (no despawn, no row) and rewinds its #9 draws.
+    #[test]
+    fn even_split_one_id_short_refuses_without_mutation() {
+        let mut zone = zone();
+        party(&mut zone, LootMode::Random);
+        // 7 adena over two members with no adena: two fresh stacks are needed.
+        let ground = drop(&mut zone, 57, 7, here(), None);
+        let (start, next, _) = zone.phase4.as_ref().unwrap().canonical.allocator.bounds();
+        zone.phase4.as_mut().unwrap().canonical.allocator =
+            crate::domain::zone::ItemInstanceRange::new(start, next, next + 1).unwrap();
+        let words = zone.rng.get_word_pos();
+        let before = zone.phase5.as_ref().unwrap().canonical.clone();
+        let tick = pickup(&mut zone, P1, 1, ground);
+        assert_eq!(
+            tick.dispositions
+                .iter()
+                .map(|d| d.reason)
+                .collect::<Vec<_>>(),
+            vec![RejectReason::InventoryFull]
+        );
+        assert_eq!(zone.rng.get_word_pos(), words, "the #9 draw is rewound");
+        assert_eq!(zone.phase5.as_ref().unwrap().canonical.ground, before.ground);
+        assert!(zone.entities.contains_key(&ground));
+        assert!(ledger(&tick).is_empty());
+        assert_eq!((holding(&zone, P1, 57), holding(&zone, P2, 57)), (0, 0));
+    }
+
     /// §4.2 `RANDOM`: one `roll_below(2)`; `LootDistributed` to the other member; the looter's
     /// row is the identity transfer, with the `party:` cause.
     #[test]
@@ -1168,10 +1632,13 @@ mod tests {
         assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
         assert!(zone.rng.get_word_pos() > words, "draw #8 taken");
         let rows = ledger(&tick);
-        let recipient = EntityId::from_uuid(rows[1].owner);
-        assert!(rows[1]
-            .causes
-            .contains(&format!("party:{}", uuid::Uuid::from_u128(1))));
+        let recipient = EntityId::from_uuid(rows[0].transfer.as_ref().unwrap().peer_owner);
+        let looter = if recipient == id(P1) { P1 } else { P2 };
+        let mine = character_rows(&tick, looter);
+        assert_eq!(
+            evidence(&mine[0], "cause"),
+            Some(format!("party:{}", uuid::Uuid::from_u128(1)))
+        );
         let (body, audience) = tick
             .events
             .iter()
@@ -1227,8 +1694,14 @@ mod tests {
         assert_eq!(a + b, 7);
         assert!(a >= 3 && b >= 3);
         let rows = ledger(&tick);
+        assert_eq!(rows.len(), 1);
         assert_eq!((rows[0].owner_kind, rows[0].op), (OwnerKind::Ground, LedgerOp::Destroy));
-        assert_eq!(rows.iter().filter(|r| r.op == LedgerOp::PartySplit).count(), 2);
+        for who in [P1, P2] {
+            let mine = character_rows(&tick, who);
+            assert_eq!(mine.len(), 1);
+            assert_eq!(mine[0].operation, ItemOperation::PartySplit);
+            assert!(mine[0].before.is_none(), "fresh");
+        }
         assert!(!tick.events.iter().any(|e| matches!(
             e,
             ZoneEvent::Economy(ev) if matches!(ev.body, EconomyBody::LootDistributed { .. })

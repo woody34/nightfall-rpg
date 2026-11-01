@@ -108,7 +108,7 @@ impl ZoneState {
         Ok(())
     }
 
-    fn npc_penalty_v5(
+    pub(in crate::domain::zone::state) fn npc_penalty_v5(
         &self,
         caster: EntityId,
         target: EntityId,
@@ -180,7 +180,7 @@ impl ZoneState {
         })
     }
 
-    fn damage_stat_v5(
+    pub(in crate::domain::zone::state) fn damage_stat_v5(
         &self,
         id: EntityId,
         stats: &EffectiveStats,
@@ -658,15 +658,19 @@ impl ZoneState {
                 i32::try_from(a.physical.level()).map_err(invariant)?
             })
             .ok_or_else(missing)?;
-        let rate = skill_math::magic_success_rate(
-            difference,
-            self.npc_penalty_v5(
-                caster.entity,
-                target.entity,
-                crate::domain::zone::skill_npc::NpcPenaltyPath::MagicFailure,
-            )?,
-            self.damage_stat_v5(target.entity, &b, "magicSuccRes", Q)?,
-        )
+        let penalty = self.npc_penalty_v5(
+            caster.entity,
+            target.entity,
+            crate::domain::zone::skill_npc::NpcPenaltyPath::MagicFailure,
+        )?;
+        let resist = self.damage_stat_v5(target.entity, &b, "magicSuccRes", Q)?;
+        // Design E32: V7 uses Java's Math.pow(1.3, d) chain for every caller; V5/V6 keep the
+        // historical factor (byte-exact replay).
+        let rate = if self.phase5_enabled() {
+            skill_math::magic_success_rate_v7(difference, penalty, resist)
+        } else {
+            skill_math::magic_success_rate(difference, penalty, resist)
+        }
         .map_err(invariant)?;
         let success =
             i64::from(draw(self, DamageRollSite::MagicSuccess, target, 100).map_err(invariant)?)
@@ -6237,6 +6241,7 @@ mod tests {
                             operation: crate::domain::zone::phase4_projection::ItemOperation::Use,
                             key: Uuid::from_u128(u128::from(template)),
                         },
+                        herb: false,
                     }),
                     simultaneous,
                     weapon: None,

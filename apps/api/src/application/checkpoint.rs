@@ -1602,6 +1602,20 @@ fn item_events(
             ItemOperation::ToggleAutoShot => {
                 anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
             },
+            // P5-D22: the economy writer (C lane) derives these facts from the V7 rows.
+            ItemOperation::TransferOut
+            | ItemOperation::TransferIn
+            | ItemOperation::PartySplit
+            | ItemOperation::Sweep
+            | ItemOperation::Harvest
+            | ItemOperation::Purchase
+            | ItemOperation::SaleProceeds
+            | ItemOperation::Craft
+            | ItemOperation::CodCredit
+            | ItemOperation::AuctionAward
+            | ItemOperation::ManorReward => {
+                anyhow::bail!("V7 economy rows are settled by the economy checkpoint writer")
+            },
         };
         facts.push(((position, 1_u8, delta.operation_ordinal), event));
     }

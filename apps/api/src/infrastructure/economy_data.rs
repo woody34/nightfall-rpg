@@ -18,7 +18,7 @@ use crate::domain::zone::phase5_rules::{Phase5RulesParts, PowTable};
 use crate::domain::zone::{Phase4Rules, Phase5Rules, PHASE5_FORMULA_REVISION};
 
 /// The generated tables, in file-name order.
-pub const PHASE5_TABLES: [&str; 16] = [
+pub const PHASE5_TABLES: [&str; 17] = [
     "adaptations.toml",
     "auction.toml",
     "catalogue.toml",
@@ -33,6 +33,7 @@ pub const PHASE5_TABLES: [&str; 16] = [
     "rates.toml",
     "recipes.toml",
     "rewards.toml",
+    "skill_promotions.toml",
     "sources.toml",
     "storage_mail.toml",
 ];
@@ -85,6 +86,9 @@ impl Phase5DataSource<'_> {
                 },
                 "rewards.toml" => {
                     include_str!("../../../../packages/data/tables-phase5/rewards.toml")
+                },
+                "skill_promotions.toml" => {
+                    include_str!("../../../../packages/data/tables-phase5/skill_promotions.toml")
                 },
                 "manor.toml" => include_str!("../../../../packages/data/tables-phase5/manor.toml"),
                 "merchants.toml" => {
@@ -237,6 +241,7 @@ fn parts_from(loaded: &Loaded, phase4: &Phase4Rules) -> Result<Phase5RulesParts,
         drops: typed("drops.toml", get("drops.toml")?)?,
         rewards: typed("rewards.toml", get("rewards.toml")?)?,
         items_closure: typed("items_closure.toml", closure)?,
+        skill_promotions: typed("skill_promotions.toml", get("skill_promotions.toml")?)?,
         rates: typed("rates.toml", get("rates.toml")?)?,
         ground: typed("ground.toml", get("ground.toml")?)?,
         party: typed("party.toml", get("party.toml")?)?,
@@ -275,6 +280,10 @@ pub fn load_phase5_rules(
 ) -> Result<Phase5Rules, String> {
     let mut rules = Phase5Rules::try_new(load_phase5_parts(source, phase4)?)?;
     rules.bind_items(phase4)?;
+    // P5-D19: the V6 skill bundle this item bundle binds (embedded or configured).
+    let bundle =
+        super::item_data::resolve_phase4_bundle(phase4.hash(), phase4.parts().phase3_hash)?;
+    rules.bind_skills(&bundle.skills)?;
     Ok(rules)
 }
 
@@ -488,6 +497,55 @@ mod tests {
             .unwrap()
             .collision_radius += 1;
         assert_ne!(Phase5Rules::try_new(reward_value).unwrap().hash(), rules.hash());
+    }
+
+    /// P5-D19: the promotions are hashed, refuse blockers outside the engine constant, bind
+    /// to the V6 skill bundle, and give a V7 skill view with Spoil/Sweeper executable and
+    /// Sowing/Harvesting added, under the unchanged Phase 3 hash.
+    #[test]
+    fn skill_promotions_bind_to_the_v6_skill_bundle_and_fail_closed() {
+        use crate::domain::class::RuntimeSkillStatus;
+        use crate::domain::zone::skill::SkillId;
+        let rules = rules();
+        let bundle = super::super::item_data::embedded_phase4_bundle().unwrap();
+        assert_eq!(rules.inventory().skill_promotions, 4);
+        let view = rules.v7_skills().unwrap();
+        assert_eq!(view.hash(), bundle.skills.hash());
+        for id in [254, 42, 2097, 2098] {
+            let skill = view.skills().get(SkillId(id)).unwrap();
+            assert_eq!(skill.runtime_status, RuntimeSkillStatus::Executable, "{id}");
+            assert!(skill.blockers.is_empty(), "{id}");
+        }
+        for id in [254, 42] {
+            let v6 = bundle.skills.skills().get(SkillId(id)).unwrap();
+            assert_eq!(v6.runtime_status, RuntimeSkillStatus::Deferred, "V6 unchanged {id}");
+        }
+        assert!(bundle.skills.skills().get(SkillId(2097)).is_none());
+        // Idempotent on the view itself.
+        let mut again = Phase5Rules::try_new(parts()).unwrap();
+        again.bind_skills(view).unwrap();
+        assert_eq!(again.v7_skills().unwrap().skills().skills(), view.skills().skills());
+        // Fail closed: an unimplemented blocker, another formula revision, another bundle.
+        let mut unimplemented = parts();
+        unimplemented.skill_promotions.promotions[0]
+            .clears
+            .push("effect:Teleport".into());
+        assert!(Phase5Rules::try_new(unimplemented).is_err());
+        let mut revision = parts();
+        revision.skill_promotions.formula_revision = 2;
+        assert!(Phase5Rules::try_new(revision).is_err());
+        let mut other = parts();
+        other.skill_promotions.v6_skills_sha256 = "00".repeat(32);
+        let mut other = Phase5Rules::try_new(other).unwrap();
+        assert!(other
+            .bind_skills(&bundle.skills)
+            .unwrap_err()
+            .contains("v6_skills_sha256"));
+        let mut changed = parts();
+        changed.skill_promotions.promotions[1].max_level = 10;
+        let mut changed = Phase5Rules::try_new(changed).unwrap();
+        assert_ne!(changed.hash(), rules.hash());
+        assert!(changed.bind_skills(&bundle.skills).is_err());
     }
 
     #[test]
