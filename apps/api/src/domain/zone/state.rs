@@ -34,6 +34,8 @@ mod phase5_party;
 mod phase5_pickup;
 #[path = "state_phase5.rs"]
 mod phase5_runtime;
+#[path = "state_phase5_spoil.rs"]
+mod phase5_spoil;
 #[path = "state_runtime.rs"]
 mod runtime;
 

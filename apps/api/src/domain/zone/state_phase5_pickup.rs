@@ -28,7 +28,7 @@ pub(super) struct CharacterRow<'a> {
     pub(super) before: Option<ItemInstance>,
     pub(super) after: ItemInstance,
     pub(super) count_delta: i64,
-    pub(super) receipt: &'a str,
+    pub(super) receipt: Option<&'a str>,
     pub(super) cause: Option<String>,
     pub(super) transfer: Option<TransferRef>,
 }
@@ -59,6 +59,16 @@ enum Landing {
 
 fn invalid<E>(_: E) -> RejectReason {
     RejectReason::InvalidLoad
+}
+
+fn items_player(
+    zone: &ZoneState,
+    id: EntityId,
+) -> Result<&crate::domain::zone::Phase4Player, RejectReason> {
+    zone.phase4
+        .as_ref()
+        .and_then(|items| items.canonical.players.get(&id))
+        .ok_or(RejectReason::InvalidLoad)
 }
 
 fn square(x: i64) -> i64 {
@@ -266,6 +276,31 @@ impl ZoneState {
                     }
                 }
             }
+            // z-review-4 P2-1: every fresh instance the payouts need is allocatable before
+            // anything changes (Phase 4 I1); an exhausted range refuses like a V6 grant.
+            let fresh = recipients
+                .iter()
+                .zip(&shares)
+                .filter(|(_, share)| **share > 0)
+                .map(|(recipient, share)| {
+                    let player = items_player(self, *recipient)?;
+                    Ok(if stackable {
+                        u64::from(merge_target(&player.inventory, template).is_none())
+                    } else {
+                        *share
+                    })
+                })
+                .try_fold(0_u64, |total, n: Result<u64, RejectReason>| {
+                    n.map(|n| total.saturating_add(n))
+                });
+            let available = self.phase4.as_ref().map_or(0, |items| {
+                let (_, next, end) = items.canonical.allocator.bounds();
+                end.saturating_sub(next)
+            });
+            if fresh.as_ref().is_ok_and(|needed| *needed > available) || fresh.is_err() {
+                (self.rng, self.evidence) = rewind;
+                return Err(fresh.err().unwrap_or(RejectReason::InventoryFull));
+            }
             for (recipient, share) in recipients.into_iter().zip(shares) {
                 if share > 0 {
                     payouts.push(Payout {
@@ -414,7 +449,7 @@ impl ZoneState {
                         before,
                         after,
                         count_delta,
-                        receipt: &receipt,
+                        receipt: Some(&receipt),
                         cause: Some(format!("party_split:{resolution}")),
                         transfer: None,
                     },
@@ -455,7 +490,7 @@ impl ZoneState {
                         before,
                         after,
                         count_delta,
-                        receipt: &receipt,
+                        receipt: Some(&receipt),
                         cause: causes.first().cloned(),
                         transfer: Some(TransferRef {
                             link,
@@ -969,7 +1004,10 @@ impl ZoneState {
         let Some(ZoneEvent::ItemCheckpoint(projection)) = events.get_mut(index) else {
             return Err(RejectReason::InvalidLoad);
         };
-        let mut fields = BTreeMap::from([("receipt".to_owned(), V::Text(row.receipt.to_owned()))]);
+        let mut fields = BTreeMap::new();
+        if let Some(receipt) = row.receipt {
+            fields.insert("receipt".to_owned(), V::Text(receipt.to_owned()));
+        }
         if let Some(cause) = row.cause {
             fields.insert("cause".into(), V::Text(cause));
         }
@@ -1552,6 +1590,34 @@ mod tests {
             vec![RejectReason::ItemCountCap]
         );
         assert!(zone.entities.contains_key(&pile));
+    }
+
+    /// z-review-4 P2-1: an even split whose fresh instances do not all fit the allocator
+    /// range refuses with no change at all (no despawn, no row) and rewinds its #9 draws.
+    #[test]
+    fn even_split_one_id_short_refuses_without_mutation() {
+        let mut zone = zone();
+        party(&mut zone, LootMode::Random);
+        // 7 adena over two members with no adena: two fresh stacks are needed.
+        let ground = drop(&mut zone, 57, 7, here(), None);
+        let (start, next, _) = zone.phase4.as_ref().unwrap().canonical.allocator.bounds();
+        zone.phase4.as_mut().unwrap().canonical.allocator =
+            crate::domain::zone::ItemInstanceRange::new(start, next, next + 1).unwrap();
+        let words = zone.rng.get_word_pos();
+        let before = zone.phase5.as_ref().unwrap().canonical.clone();
+        let tick = pickup(&mut zone, P1, 1, ground);
+        assert_eq!(
+            tick.dispositions
+                .iter()
+                .map(|d| d.reason)
+                .collect::<Vec<_>>(),
+            vec![RejectReason::InventoryFull]
+        );
+        assert_eq!(zone.rng.get_word_pos(), words, "the #9 draw is rewound");
+        assert_eq!(zone.phase5.as_ref().unwrap().canonical.ground, before.ground);
+        assert!(zone.entities.contains_key(&ground));
+        assert!(ledger(&tick).is_empty());
+        assert_eq!((holding(&zone, P1, 57), holding(&zone, P2, 57)), (0, 0));
     }
 
     /// §4.2 `RANDOM`: one `roll_below(2)`; `LootDistributed` to the other member; the looter's

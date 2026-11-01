@@ -54,7 +54,7 @@ fn q(value: i64) -> Result<ExactRatio, StatError> {
 // callsites while advancing that generator, exposing both ordering and the word cursor.
 type DamageRoll<'a> =
     dyn FnMut(&mut ZoneState, DamageRollSite, TargetBinding, u32) -> Result<u32, StatError> + 'a;
-fn draw_damage_v5(
+pub(super) fn draw_damage_v5(
     zone: &mut ZoneState,
     site: DamageRollSite,
     target: TargetBinding,
@@ -633,7 +633,9 @@ impl ZoneState {
                     .rules
                     .skills()
                     .get(effect.skill.id)
-                    .is_none_or(|skill| !supported_cast(skill, effect.skill.rank))
+                    .is_none_or(|skill| {
+                        !supported_cast(skill, effect.skill.rank, self.phase5.is_some())
+                    })
                     || (!self.complete_runtime_v5()
                         && e.kind == EntityKind::Player
                         && effect.handlers.iter().any(|h| {
@@ -652,7 +654,7 @@ impl ZoneState {
                     }))
                 || matches!(&side.cast, CastState::Casting(cast) if
                     e.kind != EntityKind::Player || phase.canonical.rules.skills().get(cast.skill.id).is_none_or(|skill|
-                        !supported_cast(skill, cast.skill.rank) || (!self.complete_runtime_v5() && hostile_skill(skill) && cast.targets.iter().any(|target|
+                        !supported_cast(skill, cast.skill.rank, self.phase5.is_some()) || (!self.complete_runtime_v5() && hostile_skill(skill) && cast.targets.iter().any(|target|
                             self.entities.get(&target.entity).is_some_and(|target_entity|
                                 target_entity.kind == EntityKind::Player && self.binding(target.entity) == Some(*target))
                         ))
@@ -1048,7 +1050,7 @@ impl ZoneState {
                         })
                     })
                     .ok_or(RejectReason::InvalidTargetType)?;
-                self.cast_target_v5(tick, caster, target, -1, true, false, false)?;
+                self.cast_target_v5(tick, caster, target, -1, true, false, None)?;
                 let c = self
                     .entities
                     .get_mut(&caster.entity)
@@ -1526,7 +1528,9 @@ impl ZoneState {
                     .rules
                     .skills()
                     .get(effect.skill.id)
-                    .is_none_or(|skill| !supported_cast(skill, effect.skill.rank))
+                    .is_none_or(|skill| {
+                        !supported_cast(skill, effect.skill.rank, self.phase5.is_some())
+                    })
                     || (!self.complete_runtime_v5()
                         && effect.handlers.iter().any(|h| {
                             h.periodic
@@ -1637,16 +1641,26 @@ impl ZoneState {
         range: i64,
         hostile: bool,
         escape: bool,
-        corpse: bool,
+        corpse: Option<EntityKind>,
     ) -> Result<(), RejectReason> {
         if hostile {
             self.hostility_v5(tick, caster, target)?;
         } else if self.binding(target.entity) != Some(target)
             || self.entities.get(&target.entity).is_none_or(|e| {
-                if corpse {
-                    !e.targeting.dead || e.kind != EntityKind::Player
-                } else {
-                    e.targeting.dead
+                match corpse {
+                    // PC_BODY: a dead player. NPC_BODY (V7, design §5.1): a dead NPC whose
+                    // corpse is still up.
+                    Some(kind) => {
+                        !e.targeting.dead
+                            || e.kind != kind
+                            || (kind == EntityKind::Npc
+                                && (self.phase5.is_none()
+                                    || e.ai
+                                        .as_ref()
+                                        .and_then(|ai| ai.corpse_until)
+                                        .is_none_or(|until| until <= tick)))
+                    },
+                    None => e.targeting.dead,
                 }
             })
         {
@@ -1764,7 +1778,7 @@ impl ZoneState {
         let simultaneous = origin
             .as_ref()
             .is_some_and(|(_, simultaneous)| *simultaneous);
-        if !supported_cast(skill, reference.rank)
+        if !supported_cast(skill, reference.rank, self.phase5.is_some())
             || (!self.complete_runtime_v5()
                 && skill.effects.iter().any(|h| h.name == "Resurrection"))
         {
@@ -1818,8 +1832,12 @@ impl ZoneState {
             skill
                 .target_type
                 .at(reference.rank, skill.max_level)
-                .is_some_and(|t| t == "PC_BODY"),
+                .and_then(|t| body_kind(t)),
         )?;
+        // V7 `canSweep` (design §5.1): checked here, then stripped from the shared terms.
+        let stripped =
+            self.strip_can_sweep_v7(tick, entry.caster.entity, Some(target.entity), skill)?;
+        let skill = stripped.as_ref().unwrap_or(skill);
         let effective = self
             .effective(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?;
@@ -2101,7 +2119,7 @@ impl ZoneState {
                 skill
                     .target_type
                     .at(cast.skill.rank, skill.max_level)
-                    .is_some_and(|t| t == "PC_BODY"),
+                    .and_then(|t| body_kind(t)),
             );
             if targets.is_empty() {
                 self.cancel_v5(tick, work.caster, Some(cast.id), target_cancel(reason), events);
@@ -2139,7 +2157,7 @@ impl ZoneState {
                 skill
                     .target_type
                     .at(cast.skill.rank, skill.max_level)
-                    .is_some_and(|t| t == "PC_BODY"),
+                    .and_then(|t| body_kind(t)),
             );
             if targets.is_empty() {
                 self.cancel_v5(tick, work.caster, Some(cast.id), target_cancel(reason), events);
@@ -2222,7 +2240,7 @@ impl ZoneState {
         }
         Ok(())
     }
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Handler order in one loop.
     fn impact_target_v5(
         &mut self,
         tick: Tick,
@@ -2249,11 +2267,37 @@ impl ZoneState {
         let result_start = results.len();
         let continuous = self.continuous_terms_v5(caster, target, skill, rank)?;
 
+        // A corpse skill (NPC_BODY) keeps running its effects on the dead target (§5.1).
+        let corpse_skill = skill
+            .target_type
+            .at(rank, skill.max_level)
+            .is_some_and(|t| t == "NPC_BODY");
         for handler in skill
             .effects
             .iter()
             .filter(|h| !crate::domain::zone::effects::continuous_handler(&h.name))
         {
+            if self.phase5.is_some() && super::phase5_spoil::v7_instant_handler(&handler.name) {
+                results.push(self.v7_instant_v7(
+                    tick,
+                    caster,
+                    target,
+                    skill,
+                    rank,
+                    cast_id,
+                    &handler.name,
+                    events,
+                )?);
+                if !corpse_skill
+                    && self
+                        .entities
+                        .get(&target.entity)
+                        .is_none_or(|e| e.targeting.dead)
+                {
+                    break;
+                }
+                continue;
+            }
             if handler.name == "Escape" {
                 results.push(self.escape_v6(tick, target, events)?);
                 continue;
@@ -3339,7 +3383,16 @@ fn hostile_skill(skill: &SkillDef) -> bool {
             )
         })
 }
-fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
+/// The body a corpse-targeting skill needs: `PC_BODY` a dead player, `NPC_BODY` (V7) a corpse.
+fn body_kind(target_type: &str) -> Option<EntityKind> {
+    match target_type {
+        "PC_BODY" => Some(EntityKind::Player),
+        "NPC_BODY" => Some(EntityKind::Npc),
+        _ => None,
+    }
+}
+
+fn supported_cast(skill: &SkillDef, rank: u32, v7: bool) -> bool {
     skill
         .affect_scope
         .at(rank, skill.max_level)
@@ -3349,47 +3402,49 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
             .at(rank, skill.max_level)
             .is_some_and(|s| {
                 matches!(s.as_str(), "SELF" | "TARGET" | "ENEMY" | "ENEMY_ONLY" | "PC_BODY")
+                    || (v7 && s == "NPC_BODY")
             })
         && skill.effects.iter().all(|h| {
-            matches!(
-                h.name.as_str(),
-                "Resurrection"
-                    | "Escape"
-                    | "PhysicalAttack"
-                    | "FatalBlow"
-                    | "Lethal"
-                    | "MagicalAttack"
-                    | "MagicalAttackRange"
-                    | "Heal"
-                    | "Hp"
-                    | "HpPerMax"
-                    | "Mp"
-                    | "Cp"
-                    | "DispelBySlot"
-                    | "DispelByCategory"
-                    | "GetAgro"
-                    | "AddHate"
-                    | "Buff"
-                    | "Debuff"
-                    | "Stun"
-                    | "Sleep"
-                    | "Root"
-                    | "TickHp"
-                    | "TickMp"
-                    | "MaxHp"
-                    | "MaxMp"
-                    | "DefenceTrait"
-                    | "AttackTrait"
-            ) && h.section == "effects"
-                && (h.name != "Escape"
-                    || h.params
-                        .get("escapeType")
-                        .and_then(|value| value.at(rank, skill.max_level))
-                        .is_some_and(|value| value == "TOWN"))
-                && h.conditions.is_empty()
-                && h.section_conditions.is_empty()
-                && (!matches!(h.name.as_str(), "MaxHp" | "MaxMp")
-                    || (skill.effects.len() == 1 && h.stat_children.is_empty()))
+            (v7 && super::phase5_spoil::v7_instant_handler(&h.name))
+                || matches!(
+                    h.name.as_str(),
+                    "Resurrection"
+                        | "Escape"
+                        | "PhysicalAttack"
+                        | "FatalBlow"
+                        | "Lethal"
+                        | "MagicalAttack"
+                        | "MagicalAttackRange"
+                        | "Heal"
+                        | "Hp"
+                        | "HpPerMax"
+                        | "Mp"
+                        | "Cp"
+                        | "DispelBySlot"
+                        | "DispelByCategory"
+                        | "GetAgro"
+                        | "AddHate"
+                        | "Buff"
+                        | "Debuff"
+                        | "Stun"
+                        | "Sleep"
+                        | "Root"
+                        | "TickHp"
+                        | "TickMp"
+                        | "MaxHp"
+                        | "MaxMp"
+                        | "DefenceTrait"
+                        | "AttackTrait"
+                ) && h.section == "effects"
+                    && (h.name != "Escape"
+                        || h.params
+                            .get("escapeType")
+                            .and_then(|value| value.at(rank, skill.max_level))
+                            .is_some_and(|value| value == "TOWN"))
+                    && h.conditions.is_empty()
+                    && h.section_conditions.is_empty()
+                    && (!matches!(h.name.as_str(), "MaxHp" | "MaxMp")
+                        || (skill.effects.len() == 1 && h.stat_children.is_empty()))
         })
 }
 
@@ -3732,7 +3787,7 @@ impl ZoneState {
             }
             let hostile = hostile_skill(skill) || skill.affect_object == "NOT_FRIEND";
             if self
-                .cast_target_v5(tick, caster, binding, -1, hostile, false, false)
+                .cast_target_v5(tick, caster, binding, -1, hostile, false, None)
                 .is_err()
             {
                 continue;
@@ -3782,7 +3837,7 @@ impl ZoneState {
         captured: &[TargetBinding],
         range: i64,
         hostile: bool,
-        corpse: bool,
+        corpse: Option<EntityKind>,
     ) -> (Vec<TargetBinding>, RejectReason) {
         let mut targets = Vec::new();
         let mut reason = RejectReason::InvalidTargetType;

@@ -108,7 +108,7 @@ impl ZoneState {
         Ok(())
     }
 
-    fn npc_penalty_v5(
+    pub(in crate::domain::zone::state) fn npc_penalty_v5(
         &self,
         caster: EntityId,
         target: EntityId,
@@ -180,7 +180,7 @@ impl ZoneState {
         })
     }
 
-    fn damage_stat_v5(
+    pub(in crate::domain::zone::state) fn damage_stat_v5(
         &self,
         id: EntityId,
         stats: &EffectiveStats,
