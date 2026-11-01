@@ -26,7 +26,8 @@ const PICKUP_RANGE_MILLI: i64 = 1_125;
 pub(super) struct CharacterRow<'a> {
     pub(super) operation: crate::domain::zone::phase4_projection::ItemOperation,
     pub(super) before: Option<ItemInstance>,
-    pub(super) after: ItemInstance,
+    /// `None` for a terminal row (the whole stack leaves this owner).
+    pub(super) after: Option<ItemInstance>,
     pub(super) count_delta: i64,
     pub(super) receipt: Option<&'a str>,
     pub(super) cause: Option<String>,
@@ -447,7 +448,7 @@ impl ZoneState {
                         operation:
                             crate::domain::zone::phase4_projection::ItemOperation::PartySplit,
                         before,
-                        after,
+                        after: Some(after),
                         count_delta,
                         receipt: Some(&receipt),
                         cause: Some(format!("party_split:{resolution}")),
@@ -488,7 +489,7 @@ impl ZoneState {
                         operation:
                             crate::domain::zone::phase4_projection::ItemOperation::TransferIn,
                         before,
-                        after,
+                        after: Some(after),
                         count_delta,
                         receipt: Some(&receipt),
                         cause: causes.first().cloned(),
@@ -978,12 +979,18 @@ impl ZoneState {
             }
         }
         let operation_ordinal = projection.next_operation_ordinal().map_err(invalid)?;
+        let instance = row
+            .after
+            .as_ref()
+            .or(row.before.as_ref())
+            .ok_or(RejectReason::InvalidLoad)?
+            .id;
         projection.ledger.push(ItemDeltaPlan {
             operation: row.operation,
             operation_ordinal,
-            instance: row.after.id,
+            instance,
             before: row.before,
-            after: Some(row.after),
+            after: row.after,
             count_delta: row.count_delta,
             receipt: None,
             receipt_refs: Vec::new(),

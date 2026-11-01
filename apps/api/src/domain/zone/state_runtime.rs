@@ -3489,6 +3489,8 @@ impl ZoneState {
             match event {
                 ZoneEvent::EntityDespawn { entity, .. } => {
                     self.remove_items_v6(*entity);
+                    // B6: the refund tab is zone-only and destroyed at departure.
+                    self.clear_refund_v7(tick, *entity);
                     self.remove_phase5_player(*entity);
                     self.phase5_npc_despawned(*entity);
                     let phase = self.phase3.as_mut().ok_or_else(missing)?;

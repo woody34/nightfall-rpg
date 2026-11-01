@@ -38,6 +38,8 @@ mod phase5_pickup;
 mod phase5_runtime;
 #[path = "state_phase5_spoil.rs"]
 mod phase5_spoil;
+#[path = "state_phase5_vendor.rs"]
+mod phase5_vendor;
 #[path = "state_runtime.rs"]
 mod runtime;
 

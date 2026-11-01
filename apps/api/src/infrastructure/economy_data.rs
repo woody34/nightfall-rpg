@@ -248,6 +248,8 @@ fn parts_from(loaded: &Loaded, phase4: &Phase4Rules) -> Result<Phase5RulesParts,
         herbs: typed("herbs.toml", get("herbs.toml")?)?,
         catalogue: typed("catalogue.toml", get("catalogue.toml")?)?,
         merchants: typed("merchants.toml", get("merchants.toml")?)?,
+        // P5-D29 interim: C's merchant_fixtures.toml is bound (and required) when it lands.
+        merchant_fixtures: crate::domain::zone::phase5_rules::MerchantFixturesTable::default(),
         multisell: typed("multisell.toml", get("multisell.toml")?)?,
         recipes: typed("recipes.toml", get("recipes.toml")?)?,
         storage_mail: typed("storage_mail.toml", get("storage_mail.toml")?)?,

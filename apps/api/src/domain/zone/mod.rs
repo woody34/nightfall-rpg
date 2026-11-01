@@ -177,7 +177,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 104] = [
+    const SOURCES: [(&str, &str); 105] = [
         ("mod.rs", include_str!("mod.rs")),
         ("binary64.rs", include_str!("binary64.rs")),
         ("drops.rs", include_str!("drops.rs")),
@@ -188,6 +188,7 @@ mod tests {
         ("state_phase5_pickup.rs", include_str!("state_phase5_pickup.rs")),
         ("state_phase5_spoil.rs", include_str!("state_phase5_spoil.rs")),
         ("state_phase5_manor.rs", include_str!("state_phase5_manor.rs")),
+        ("state_phase5_vendor.rs", include_str!("state_phase5_vendor.rs")),
         ("wide.rs", include_str!("wide.rs")),
         ("state_phase5.rs", include_str!("state_phase5.rs")),
         ("phase5.rs", include_str!("phase5.rs")),

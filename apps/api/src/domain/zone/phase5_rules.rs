@@ -284,6 +284,21 @@ record!(MerchantsTable {
     castle_taxes: CastleTaxes
 });
 
+// P5-D29: the fixture merchants of the zone fixture pack (D58 blacksmith pattern).
+record!(MerchantFixture {
+    npc: u32,
+    name: String,
+    x: i32,
+    y: i32
+});
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct MerchantFixturesTable {
+    pub schema_version: u32,
+    pub merchants: Vec<MerchantFixture>,
+}
+
 // ---- item 7: multisell -------------------------------------------------------------------------
 
 record!(MultisellIngredient {
@@ -532,6 +547,8 @@ record!(Phase5RulesParts {
     items_closure: ItemsClosureTable,
     skill_promotions: SkillPromotionsTable,
     merchants: MerchantsTable,
+    /// P5-D29 (interim: empty until C's table is bound; then required).
+    merchant_fixtures: MerchantFixturesTable,
     multisell: MultisellTable,
     recipes: RecipesTable,
     storage_mail: StorageMailTable,
@@ -599,6 +616,12 @@ pub struct Phase5Rules {
     npc_index: BTreeMap<u32, usize>,
     reward_index: BTreeMap<u32, usize>,
     herbs: BTreeSet<u32>,
+    /// `(list_id, template)` → merchant entry; `(template, tax)` → unit price row;
+    /// buylist id → row; multisell list id → row (story 3.7).
+    product_index: BTreeMap<(u64, u32), usize>,
+    unit_index: BTreeMap<(u32, String), usize>,
+    buylist_index: BTreeMap<u64, usize>,
+    multisell_index: BTreeMap<u32, usize>,
     /// D10: the V7 item view, bound by [`Self::bind_items`] (a function of `parts` and the
     /// bound V6 bundle, so not hashed).
     v7_items: Option<Arc<super::Phase4Rules>>,
@@ -673,7 +696,7 @@ impl Phase5Rules {
             ("3.ground", json(&parts.ground)?),
             ("4.party", json(&parts.party)?),
             ("5.herbs", json(&(&parts.herbs, &parts.catalogue, &parts.items_closure))?),
-            ("6.merchants", json(&parts.merchants)?),
+            ("6.merchants", json(&(&parts.merchants, &parts.merchant_fixtures))?),
             ("7.multisell", json(&parts.multisell)?),
             ("8.recipes", json(&parts.recipes)?),
             ("9.storage_mail", json(&parts.storage_mail)?),
@@ -716,6 +739,39 @@ impl Phase5Rules {
             .map(|herb| herb.id)
             .chain(parts.herbs.unhandled.iter().map(|herb| herb.id))
             .collect();
+        let product_index = parts
+            .merchants
+            .entries
+            .iter()
+            .enumerate()
+            .flat_map(|(index, entry)| {
+                entry
+                    .list_ids
+                    .iter()
+                    .map(move |list| ((*list, entry.item), index))
+            })
+            .collect();
+        let unit_index = parts
+            .merchants
+            .unit_prices
+            .iter()
+            .enumerate()
+            .map(|(index, row)| ((row.item, row.tax.clone()), index))
+            .collect();
+        let buylist_index = parts
+            .merchants
+            .buylists
+            .iter()
+            .enumerate()
+            .map(|(index, row)| (row.list_id, index))
+            .collect();
+        let multisell_index = parts
+            .multisell
+            .list
+            .iter()
+            .enumerate()
+            .map(|(index, row)| (row.id, index))
+            .collect();
         Ok(Self {
             parts,
             inventory,
@@ -724,6 +780,10 @@ impl Phase5Rules {
             npc_index,
             reward_index,
             herbs,
+            product_index,
+            unit_index,
+            buylist_index,
+            multisell_index,
             v7_items: None,
             v7_skills: None,
         })
@@ -819,6 +879,77 @@ impl Phase5Rules {
         }
         self.v7_skills = Some(Arc::new(phase3.with_v7_registry(view)));
         Ok(())
+    }
+
+    /// The buylist `list_id` (design §6.1).
+    #[must_use]
+    pub fn buylist(&self, list_id: u64) -> Option<&Buylist> {
+        self.parts
+            .merchants
+            .buylists
+            .get(*self.buylist_index.get(&list_id)?)
+    }
+
+    /// The product `template` of buylist `list_id`.
+    #[must_use]
+    pub fn product(&self, list_id: u64, template: u32) -> Option<&MerchantEntry> {
+        self.parts
+            .merchants
+            .entries
+            .get(*self.product_index.get(&(list_id, template))?)
+    }
+
+    /// The precomputed unit price `⌊fl(P · fl(1 + fl(t + c)))⌋` (design §6.2) of a product at a
+    /// castle percent (0, 5, 15 or 25).
+    #[must_use]
+    pub fn unit_price(&self, entry: &MerchantEntry, castle_percent: u32) -> Option<u64> {
+        let row = self
+            .parts
+            .merchants
+            .unit_prices
+            .get(*self.unit_index.get(&(entry.item, entry.tax.clone()))?)?;
+        match castle_percent {
+            0 => Some(row.castle_0),
+            5 => Some(row.castle_5),
+            15 => Some(row.castle_15),
+            25 => Some(row.castle_25),
+            _ => None,
+        }
+    }
+
+    /// The tax percent of the zone's castle (the hashed fixture `castle_area`, E28).
+    #[must_use]
+    pub fn castle_percent(&self) -> Option<u32> {
+        let area = self.parts.manor.fixture_gludio.castle_area;
+        self.parts
+            .merchants
+            .castle_taxes
+            .castles
+            .iter()
+            .find(|c| c.id == area)
+            .map(|c| c.tax_percent)
+    }
+
+    /// The multisell list `id` (design §7).
+    #[must_use]
+    pub fn multisell_list(&self, id: u32) -> Option<&MultisellList> {
+        self.parts
+            .multisell
+            .list
+            .get(*self.multisell_index.get(&id)?)
+    }
+
+    /// P5-D29 read port: the pinned NPC a fixture merchant (name, exact position) is bound to.
+    #[must_use]
+    pub fn merchant_fixture(&self, name: &str, pos: super::Vec2Fixed) -> Option<u32> {
+        self.parts
+            .merchant_fixtures
+            .merchants
+            .iter()
+            .find_map(|row| {
+                (row.name == name && super::Vec2Fixed::from_tiles(row.x, row.y) == pos)
+                    .then_some(row.npc)
+            })
     }
 
     /// The V7 skill view; `None` until [`Self::bind_skills`].
@@ -2098,6 +2229,7 @@ impl Phase5RulesParts {
 
         self.validate_rewards_and_closure(&mut inv)?;
         self.validate_skill_promotions(&mut inv)?;
+        self.validate_merchant_fixtures()?;
 
         // Closure: the catalogue is exactly the set of referenced templates.
         ensure(closure.referenced.len() == templates.len(), || {
@@ -2108,6 +2240,30 @@ impl Phase5RulesParts {
             )
         })?;
         Ok((inv, g))
+    }
+
+    /// P5-D29: rows ascending and unique by npc, unique `(name, x, y)`, a non-empty name,
+    /// and every npc a buylist NPC or a multisell list NPC.
+    fn validate_merchant_fixtures(&self) -> Check {
+        let mut places = BTreeSet::new();
+        let mut previous = 0;
+        for row in &self.merchant_fixtures.merchants {
+            let known = self.merchants.buylists.iter().any(|b| b.npc == row.npc)
+                || self
+                    .multisell
+                    .list
+                    .iter()
+                    .any(|l| l.npcs.contains(&row.npc));
+            ensure(
+                row.npc > previous
+                    && !row.name.is_empty()
+                    && places.insert((row.name.clone(), row.x, row.y))
+                    && known,
+                || format!("merchant_fixtures: row {} invalid", row.npc),
+            )?;
+            previous = row.npc;
+        }
+        Ok(())
     }
 
     /// P5-D19 promotions without the V6 bundle: the formula revision, ascending disjoint

@@ -666,7 +666,7 @@ impl ZoneState {
                 CharacterRow {
                     operation,
                     before,
-                    after,
+                    after: Some(after),
                     count_delta,
                     receipt: None,
                     cause: Some(resolution.to_owned()),

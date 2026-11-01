@@ -495,7 +495,7 @@ impl ZoneState {
                 CharacterRow {
                     operation: ItemOperation::Harvest,
                     before,
-                    after,
+                    after: Some(after),
                     count_delta,
                     receipt: None,
                     cause: Some(cause.to_owned()),

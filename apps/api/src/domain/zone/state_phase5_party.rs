@@ -63,6 +63,15 @@ impl ZoneState {
             return Err(RejectReason::NotPermitted);
         }
         let actor = command.entity().ok_or(RejectReason::NotPermitted)?;
+        if matches!(command, Phase5Command::VendorBuy { .. }) {
+            return self.vendor_buy(tick, actor, command, seq, events);
+        }
+        if matches!(command, Phase5Command::VendorSell { .. }) {
+            return self.vendor_sell(tick, actor, command, seq, events);
+        }
+        if matches!(command, Phase5Command::VendorRefund { .. }) {
+            return self.vendor_refund(tick, actor, command, seq, events);
+        }
         if let Phase5Command::PickUpItem { ground, .. } = command {
             return self.pick_up_item(
                 tick,
