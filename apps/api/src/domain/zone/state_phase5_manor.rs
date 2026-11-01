@@ -377,12 +377,14 @@ impl ZoneState {
                 projection,
                 change,
                 count_delta,
+                // P5-D26: one `economy` contribution `{count_delta: Signed, cause}`; an
+                // automatic debit (Sow) has no receipt.
                 ItemAuditEvidence {
-                    family: "economy_consume".into(),
-                    fields: std::collections::BTreeMap::from([(
-                        "cause".to_owned(),
-                        ItemEvidenceValue::Text(cause.to_owned()),
-                    )]),
+                    family: "economy".into(),
+                    fields: std::collections::BTreeMap::from([
+                        ("count_delta".to_owned(), ItemEvidenceValue::Signed(count_delta)),
+                        ("cause".to_owned(), ItemEvidenceValue::Text(cause.to_owned())),
+                    ]),
                 },
             )?;
         }
