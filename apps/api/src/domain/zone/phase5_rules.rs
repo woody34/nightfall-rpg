@@ -229,6 +229,9 @@ record!(SkillPromotionsTable {
     promotions: Vec<SkillPromotion>, additions: Vec<SkillAddition>
 });
 
+/// The item handlers the V7 engine of formula revision 1 adds (design §10.6).
+pub const V7_IMPLEMENTED_HANDLERS: [&str; 2] = ["handler:Harvester", "handler:Seed"];
+
 /// The blockers the V7 engine of formula revision 1 implements (P5-D19): a promotion may
 /// clear exactly these and nothing else.
 pub const V7_IMPLEMENTED_BLOCKERS: [&str; 7] = [
@@ -778,6 +781,36 @@ impl Phase5Rules {
             }
         }
         let view = registry.with_v7_promotions(&promoted, &added)?;
+        // The V7 item view clears what the V7 engine executes: `skill:<id>:<level>` for a
+        // V7-executable skill and the V7 item handlers; a capability left with no blocker
+        // is admitted (design §10.6 seeds and harvester; herbs stay deferred).
+        if let Some(items) = &self.v7_items {
+            let clears = |blocker: &String| {
+                V7_IMPLEMENTED_HANDLERS.contains(&blocker.as_str())
+                    || blocker
+                        .strip_prefix("skill:")
+                        .and_then(|rest| rest.split_once(':'))
+                        .and_then(|(id, level)| {
+                            Some((id.parse::<u32>().ok()?, level.parse::<u32>().ok()?))
+                        })
+                        .is_some_and(|(id, level)| {
+                            view.get(super::skill::SkillId(id)).is_some_and(|skill| {
+                                skill.runtime_status
+                                    == crate::domain::class::RuntimeSkillStatus::Executable
+                                    && (1..=skill.max_level).contains(&level)
+                            })
+                        })
+            };
+            let mut capabilities = items.parts().capabilities.clone();
+            for capability in capabilities.values_mut() {
+                capability.blockers.retain(|b| !clears(b));
+                capability.use_blockers.retain(|b| !clears(b));
+                if capability.blockers.is_empty() && capability.use_blockers.is_empty() {
+                    capability.admitted = true;
+                }
+            }
+            self.v7_items = Some(Arc::new(items.with_capabilities(capabilities)));
+        }
         self.v7_skills = Some(Arc::new(phase3.with_v7_registry(view)));
         Ok(())
     }
@@ -806,6 +839,8 @@ impl Phase5Rules {
             "items_closure: v6_items_sha256 differs from the bound V6 bundle".into()
         })?;
         let v6 = phase4.parts();
+        // The V7 view already carries every closure item row (its capabilities may have been
+        // recomputed against the V7 skill view by `bind_skills`).
         if closure
             .items
             .iter()
@@ -813,7 +848,7 @@ impl Phase5Rules {
             && closure
                 .capabilities
                 .iter()
-                .all(|row| v6.capabilities.get(&row.template_id) == Some(row))
+                .all(|row| v6.capabilities.contains_key(&row.template_id))
         {
             // Already the V7 item view (a restore of a V7 state passes it back in).
             self.v7_items = Some(Arc::new(phase4.clone()));

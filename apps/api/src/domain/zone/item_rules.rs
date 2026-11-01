@@ -301,6 +301,18 @@ impl Phase4Rules {
         })
     }
 
+    /// The V7 item view with its capabilities recomputed against the V7 skill view and
+    /// handlers (`Phase5Rules::bind_skills`), under this bundle's hash.
+    #[must_use]
+    pub fn with_capabilities(&self, capabilities: BTreeMap<u32, ItemCapability>) -> Self {
+        let mut parts = self.parts.clone();
+        parts.capabilities = capabilities;
+        Self {
+            parts,
+            hash: self.hash,
+        }
+    }
+
     /// Full rule contents; mutation requires a newly validated bundle and a new epoch.
     pub const fn parts(&self) -> &ItemRulesParts {
         &self.parts

@@ -23,7 +23,7 @@ const SWEEP_MIN_CORPSE_TICKS: u64 = 20;
 
 /// The effect names of the B11 handlers.
 pub(super) fn v7_instant_handler(name: &str) -> bool {
-    matches!(name, "Spoil" | "Sweeper" | "ConsumeBody")
+    matches!(name, "Spoil" | "Sweeper" | "ConsumeBody" | "Sow" | "Harvesting")
 }
 
 fn square(x: i64) -> i64 {
@@ -208,6 +208,8 @@ impl ZoneState {
             "Spoil" => self.spoil_v7(caster, target, skill, rank)?,
             "Sweeper" => self.sweeper_v7(tick, caster, target, cast_id, events)?,
             "ConsumeBody" => self.consume_body_v7(tick, target, events),
+            "Sow" => self.sow_v7(tick, caster, target, cast_id, events)?,
+            "Harvesting" => self.harvesting_v7(tick, caster, target, cast_id, events)?,
             _ => return Err(super::TickError::Phase5Invariant),
         };
         let hp = self

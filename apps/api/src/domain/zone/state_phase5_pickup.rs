@@ -956,6 +956,53 @@ impl ZoneState {
         use crate::domain::zone::phase4_projection::{
             ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue as V,
         };
+        let index = self.economy_projection(tick, owner, events)?;
+        let Some(ZoneEvent::ItemCheckpoint(projection)) = events.get_mut(index) else {
+            return Err(RejectReason::InvalidLoad);
+        };
+        let mut fields = BTreeMap::new();
+        if let Some(receipt) = row.receipt {
+            fields.insert("receipt".to_owned(), V::Text(receipt.to_owned()));
+        }
+        if let Some(cause) = row.cause {
+            fields.insert("cause".into(), V::Text(cause));
+        }
+        if let Some(transfer) = &row.transfer {
+            fields.insert("link".into(), V::Text(transfer.link.to_string()));
+            fields.insert("mode".into(), V::Text(enum_text(&transfer.mode)));
+            fields.insert("peer_owner_kind".into(), V::Text(enum_text(&transfer.peer_owner_kind)));
+            fields.insert("peer_owner".into(), V::Text(transfer.peer_owner.to_string()));
+            fields.insert("peer_instance".into(), V::Unsigned(transfer.peer_instance.get()));
+            if let Some(ordinal) = transfer.peer_ordinal {
+                fields.insert("peer_ordinal".into(), V::Unsigned(u64::from(ordinal)));
+            }
+        }
+        let operation_ordinal = projection.next_operation_ordinal().map_err(invalid)?;
+        projection.ledger.push(ItemDeltaPlan {
+            operation: row.operation,
+            operation_ordinal,
+            instance: row.after.id,
+            before: row.before,
+            after: Some(row.after),
+            count_delta: row.count_delta,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![ItemAuditEvidence {
+                family: "economy".into(),
+                fields,
+            }],
+        });
+        Ok(())
+    }
+
+    /// The index in `events` of `owner`'s `ItemCheckpoint` projection for this tick, created
+    /// (with no rows; refreshed at the tick boundary) when the tick has none yet.
+    pub(super) fn economy_projection(
+        &self,
+        tick: Tick,
+        owner: EntityId,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<usize, RejectReason> {
         let index = if let Some(index) = events
             .iter()
             .position(|e| matches!(e, ZoneEvent::ItemCheckpoint(p) if p.entity == owner))
@@ -1001,42 +1048,7 @@ impl ZoneState {
             })));
             events.len().saturating_sub(1)
         };
-        let Some(ZoneEvent::ItemCheckpoint(projection)) = events.get_mut(index) else {
-            return Err(RejectReason::InvalidLoad);
-        };
-        let mut fields = BTreeMap::new();
-        if let Some(receipt) = row.receipt {
-            fields.insert("receipt".to_owned(), V::Text(receipt.to_owned()));
-        }
-        if let Some(cause) = row.cause {
-            fields.insert("cause".into(), V::Text(cause));
-        }
-        if let Some(transfer) = &row.transfer {
-            fields.insert("link".into(), V::Text(transfer.link.to_string()));
-            fields.insert("mode".into(), V::Text(enum_text(&transfer.mode)));
-            fields.insert("peer_owner_kind".into(), V::Text(enum_text(&transfer.peer_owner_kind)));
-            fields.insert("peer_owner".into(), V::Text(transfer.peer_owner.to_string()));
-            fields.insert("peer_instance".into(), V::Unsigned(transfer.peer_instance.get()));
-            if let Some(ordinal) = transfer.peer_ordinal {
-                fields.insert("peer_ordinal".into(), V::Unsigned(u64::from(ordinal)));
-            }
-        }
-        let operation_ordinal = projection.next_operation_ordinal().map_err(invalid)?;
-        projection.ledger.push(ItemDeltaPlan {
-            operation: row.operation,
-            operation_ordinal,
-            instance: row.after.id,
-            before: row.before,
-            after: Some(row.after),
-            count_delta: row.count_delta,
-            receipt: None,
-            receipt_refs: Vec::new(),
-            causes: vec![ItemAuditEvidence {
-                family: "economy".into(),
-                fields,
-            }],
-        });
-        Ok(())
+        Ok(index)
     }
 
     /// Stage one owner-kind ledger row; ordinals are assigned at the tick flush.
