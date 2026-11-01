@@ -927,17 +927,16 @@ impl ZoneState {
             }
         }
         self.finish_cast_evidence_v6(&events);
-        // P5-Q13: every owner an economy operation changed has its item projection; the
-        // owner-kind rows leave as one `EconomyCheckpoint` with T1 ordinals.
-        self.ensure_economy_projections(tick, &mut events)
-            .map_err(|_| TickError::Phase5Invariant)?;
-        self.flush_economy_ledger(tick, &mut events);
-        // D66: canonical per-instance ledger order is fixed once, at the tick boundary.
+        // D66: canonical per-instance ledger order is fixed once, at the tick boundary; under
+        // V7 it also orders the character-owner economy rows (P5-D22).
         for event in &mut events {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
                 projection.normalize_d66().map_err(invariant)?;
             }
         }
+        // The other owners' rows leave as one `EconomyCheckpoint`, linked to the normalized
+        // character rows.
+        self.flush_economy_ledger(tick, &mut events);
         self.final_items_v6(tick, before_items, &mut events)?;
         self.freeze_items_v6(tick, before_items, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;

@@ -298,6 +298,20 @@ fn operation_to_pb(operation: ItemOperation) -> Result<pb::ItemOperation, AppErr
         ItemOperation::Destroy => pb::ItemOperation::Destroy,
         ItemOperation::Enchant => pb::ItemOperation::Enchant,
         ItemOperation::ToggleAutoShot => pb::ItemOperation::ToggleAutoShot,
+        // P5-D22: economy rows reach clients through EconomyResult, never this mapping.
+        ItemOperation::TransferOut
+        | ItemOperation::TransferIn
+        | ItemOperation::PartySplit
+        | ItemOperation::Sweep
+        | ItemOperation::Harvest
+        | ItemOperation::Purchase
+        | ItemOperation::SaleProceeds
+        | ItemOperation::Craft
+        | ItemOperation::CodCredit
+        | ItemOperation::AuctionAward
+        | ItemOperation::ManorReward => {
+            return Err(anyhow::anyhow!("economy ledger operation has no item wire value").into())
+        },
         ItemOperation::Refine => pb::ItemOperation::Refine,
         ItemOperation::CancelRefine => pb::ItemOperation::CancelRefine,
         ItemOperation::Exchange => pb::ItemOperation::ExchangeSa,

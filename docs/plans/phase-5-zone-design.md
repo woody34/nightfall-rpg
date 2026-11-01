@@ -1565,6 +1565,13 @@ Ordinals are the row positions 0..n−1, so the D76 contiguity check holds. The 
 
 The `000014` trigger encodes T1. Under V5/V6 no terminal row ever follows a consume, so legacy recordings validate unchanged. T1 is **ratified by E26** as a V7 amendment of D69/D76.
 
+**Rule D66-V7 (ruling P5-D22).** Character-owner economy rows (`transfer_in`, `transfer_out`, `party_split`, `sweep`, `harvest`, `purchase`, `sale_proceeds`, `craft`, `cod_credit`, `auction_award`, `manor_reward`) are rows of the owner's `ItemCheckpoint` projection ledger, not of the `EconomyCheckpoint`. They are appended when their operation resolves, so the ledger holds every change of the tick in resolution order: command ordinal in phase 0, then the later phases. The same D66 normalizer orders V6 and V7 rows per instance at the tick boundary:
+1. every non-Consume, non-terminal row in that resolution order (a merge `transfer_in` or a `party_split` is a positive row, like a grant);
+2. the single Consume aggregate, rebased onto the post-positive state;
+3. at most one terminal row (`transfer_out` or `destroy` with after = None), which must be the instance's last resolved row (D94).
+
+Positions 0..n−1 are then assigned per instance (D76). A V7 row carries `receipt = None` and one `economy` audit cause with `receipt`, an optional `cause`, and for a transfer the `link`, `mode`, `peer_owner_kind`, `peer_owner` and `peer_instance`. The `EconomyCheckpoint` keeps only the non-character owners (ground, refund and containers), with T1 positions of their own. Each of its transfer rows names its character peer's normalized position (`transfer.peer_ordinal`), resolved after D66. V5/V6 epochs never emit these operations, and Record ≤ 8 payloads refuse their names.
+
 ### 11.3 Per-operation ledger table (R6, R34)
 
 Notation:
@@ -1578,7 +1585,7 @@ Client-intent receipts use `receipt:<operation>:<key>`. Automatic causes use `<k
 |---|---|---|---|
 | NPC loot creation | ground: `loot`, fresh | `loot:<death resolution_id>` | — |
 | PK drop | victim: `unequip` (if equipped) then `transfer_out` identity, terminal; ground: `transfer_in` identity | `pk_drop:<death resolution_id>` | whole stack (`Inventory.dropItem`) |
-| Pickup, solo | ground: `transfer_out` identity, terminal; picker: `transfer_in` identity or merge | `receipt:pick_up_item:<key>` | adena cap |
+| Pickup, solo | ground: `transfer_out` identity, terminal; picker: `transfer_in` identity or merge (in the picker's item projection, Rule D66-V7) | `receipt:pick_up_item:<key>` | adena cap |
 | Pickup, solo adena with an existing stack | ground: `transfer_out` → picker `transfer_in` merge | receipt | pinned `addAdena` + `destroyItem("Pickup")` is represented as a merge transfer (equivalent net state) |
 | Pickup, party non-split | ground: `transfer_out` → looter: `transfer_in` identity or merge | receipt + `party:<resolution>` | looter may be another member |
 | Pickup, party even split | ground: `destroy`, terminal; each recipient: `party_split` fresh or merge | receipt + `party_split:<resolution>` | per-recipient cap; refuse the whole pickup on violation |

@@ -542,6 +542,18 @@ fn events(cp: &CharacterCheckpoint, work: &ItemCheckpointWork) -> Vec<DomainEven
                 ItemOperation::ToggleAutoShot => {
                     panic!("owner-only operations cannot be fixture ledger rows")
                 },
+                // P5-D22: V7 economy rows never appear in these V6 fixtures.
+                ItemOperation::TransferOut
+                | ItemOperation::TransferIn
+                | ItemOperation::PartySplit
+                | ItemOperation::Sweep
+                | ItemOperation::Harvest
+                | ItemOperation::Purchase
+                | ItemOperation::SaleProceeds
+                | ItemOperation::Craft
+                | ItemOperation::CodCredit
+                | ItemOperation::AuctionAward
+                | ItemOperation::ManorReward => panic!("V7 economy rows in a V6 fixture"),
             }
         })
         .collect()
