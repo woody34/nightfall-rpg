@@ -107,6 +107,19 @@ pub struct OpenChain {
     pub after: serde_json::Value,
 }
 
+/// The last ledger row of one ground or refund chain (P5-D23 fenced-snapshot guard).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct ChainEnd {
+    pub epoch: u64,
+    pub tick: u64,
+    pub owner_kind: String,
+    pub owner: Uuid,
+    pub instance: u64,
+    /// `true` when the last row's `after` is null (the instance left the owner).
+    pub terminal: bool,
+}
+
 /// The read side of the DB-only economy (E31: no method writes).
 #[async_trait]
 pub trait EconomyReadRepository: Send + Sync {
@@ -148,6 +161,9 @@ pub trait EconomyReadRepository: Send + Sync {
         zone: u32,
         epoch: u64,
     ) -> Result<Vec<OpenChain>, EconomyError>;
+    /// The last row of every ground and refund chain of the zone (any epoch), ascending by
+    /// (owner kind, owner, instance).
+    async fn ground_refund_chains(&self, zone: u32) -> Result<Vec<ChainEnd>, EconomyError>;
     /// The epochs below `epoch` that still hold leases in the zone, ascending.
     async fn lease_epochs(&self, zone: u32, epoch: u64) -> Result<Vec<u64>, EconomyError>;
     /// Pre-images of every row covered by the keys (design §10.0 step 1): integer/string

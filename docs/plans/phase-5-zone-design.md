@@ -1675,6 +1675,9 @@ Outbox subjects, extending A20/C9: `nightfall.item.{looted, picked_up, dropped_p
 - **Graceful close.** A graceful epoch close emits, in its final tick, `destroy` rows for every remaining ground item and refund entry, with cause `epoch_close:<epoch>`. Pinned `SaveDroppedItem = False` drops ground items at shutdown.
 - **Abandoned epoch** (crash with no successor recovery). The next epoch of the same zone executes a system command `EpochReconcile{abandoned_epoch, ground and refund manifest from the last fenced snapshot}` before admitting players. It writes `destroy` rows with cause `epoch_void:<epoch>`, so every live instance in the ledger has a terminal fact.
 - Leases of the closed or abandoned epoch are released in the same transaction.
+- **Manifest source (P5-D23).** The API reads the manifest from the committed ledger. A ground or refund chain is live when its last row is not terminal. Ground and refund owners have no `item_instances` rows.
+- **Fenced-snapshot guard (P5-D23).** If a fenced snapshot of the abandoned epoch exists, each of its ground and refund instances must agree with the ledger. The instance is live in the ledger, or its chain ended after the snapshot tick. If one instance does not agree, the API stops with the invariant `epoch_reconcile_snapshot_mismatch`. It releases no lease and queues no reconcile.
+- **Fingerprint (P5-D24).** The `EpochReconcile` command is `{request_key, abandoned_epoch}`. The manifest is in the frozen inputs (`decisions.manifest`), and the frozen inputs are part of the fingerprint.
 
 ## 12. Replay, codec and digest
 

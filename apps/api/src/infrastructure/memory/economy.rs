@@ -818,6 +818,35 @@ impl crate::application::economy_reads::EconomyReadRepository for InMemoryEconom
         Ok(open)
     }
 
+    async fn ground_refund_chains(
+        &self,
+        zone: u32,
+    ) -> Result<Vec<crate::application::economy_reads::ChainEnd>, EconomyError> {
+        let state = self.lock();
+        let mut last: BTreeMap<(String, Uuid, u64), &OwnerLedgerRow> = BTreeMap::new();
+        for row in state
+            .ledger
+            .iter()
+            .filter(|r| r.zone_id == zone && matches!(r.owner_kind.as_str(), "ground" | "refund"))
+        {
+            last.insert((row.owner_kind.clone(), row.owner_id, row.instance_id), row);
+        }
+        Ok(last
+            .into_values()
+            .map(|row| crate::application::economy_reads::ChainEnd {
+                epoch: row.epoch,
+                tick: row.tick,
+                owner_kind: row.owner_kind.clone(),
+                owner: row.owner_id,
+                instance: row.instance_id,
+                terminal: row
+                    .delta
+                    .get("after")
+                    .is_none_or(serde_json::Value::is_null),
+            })
+            .collect())
+    }
+
     async fn lease_epochs(&self, zone: u32, epoch: u64) -> Result<Vec<u64>, EconomyError> {
         let state = self.lock();
         let epochs: BTreeSet<u64> = state

@@ -11,11 +11,13 @@
 //!   (cause `epoch_void:<epoch>`, [`void_rows`]), so every live instance in the ledger gets its
 //!   terminal fact.
 //!
-//! The ledger is the manifest source: ground and refund owners have no `item_instances` rows
-//! (E17, B6), and a chain is live exactly when its last row is not terminal. That is the content
-//! of the last fenced snapshot as far as the committed ledger goes.
+//! The ledger is the manifest source (P5-D23): ground and refund owners have no `item_instances`
+//! rows (E17, B6), and a chain is live exactly when its last row is not terminal. When a fenced
+//! snapshot of an abandoned epoch exists, its ground and refund instances must agree with the
+//! ledger: each one is live in the ledger, or its chain ended after the snapshot tick. Any other
+//! instance is an invariant failure, and no reconcile runs (`epoch_reconcile_snapshot_mismatch`).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use uuid::Uuid;
@@ -23,9 +25,11 @@ use uuid::Uuid;
 use super::economy::{
     EconomyError, FrozenInputs, LeaseGrant, LeaseRepository, OwnerLedgerRow, SystemJob,
 };
-use super::economy_reads::{EconomyReadRepository, OpenChain};
+use super::economy_reads::{ChainEnd, EconomyReadRepository, OpenChain};
 use super::economy_scheduler::{ScheduledJob, SystemJobPort};
+use super::replay_log::ZoneSnapshotStore;
 use crate::domain::zone::phase5_command::Phase5Command;
+use crate::domain::zone::{ZoneId, ZoneSnapshot};
 
 /// What [`EpochReconciler::before_admission`] did.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -86,11 +90,56 @@ pub fn void_rows(
         .collect()
 }
 
+/// The ground and refund instances of a fenced snapshot: `(snapshot tick, {(owner kind, owner,
+/// instance)})`. A pre-V7 snapshot has none.
+#[must_use]
+pub fn fenced_instances(snapshot: &ZoneSnapshot) -> (u64, BTreeSet<(String, Uuid, u64)>) {
+    let mut out = BTreeSet::new();
+    if let Some(block) = &snapshot.phase5 {
+        for ground in block.ground.values() {
+            out.insert(("ground".to_owned(), ground.entity.as_uuid(), ground.item.id.get()));
+        }
+        for (player, state) in &block.players {
+            for item in &state.refund {
+                out.insert(("refund".to_owned(), player.as_uuid(), item.id.get()));
+            }
+        }
+    }
+    (snapshot.tick.0, out)
+}
+
+/// P5-D23: every fenced instance is live in the ledger, or its chain ended after the snapshot.
+pub fn check_fenced(
+    epoch: u64,
+    tick: u64,
+    fenced: &BTreeSet<(String, Uuid, u64)>,
+    chains: &[ChainEnd],
+) -> Result<(), EconomyError> {
+    let ends: BTreeMap<(&str, Uuid, u64), &ChainEnd> = chains
+        .iter()
+        .map(|c| ((c.owner_kind.as_str(), c.owner, c.instance), c))
+        .collect();
+    for (kind, owner, instance) in fenced {
+        let agrees = ends
+            .get(&(kind.as_str(), *owner, *instance))
+            .is_some_and(|end| {
+                !end.terminal || end.epoch > epoch || (end.epoch == epoch && end.tick > tick)
+            });
+        if !agrees {
+            return Err(EconomyError::Constraint(format!(
+                "epoch_reconcile_snapshot_mismatch:{epoch}:{kind}:{owner}:{instance}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Epoch close and abandoned-epoch reconciliation over the lease, read and system-job ports.
 pub struct EpochReconciler {
     leases: Arc<dyn LeaseRepository>,
     reads: Arc<dyn EconomyReadRepository>,
     zones: Arc<dyn SystemJobPort>,
+    snapshots: Option<Arc<dyn ZoneSnapshotStore>>,
 }
 
 impl EpochReconciler {
@@ -105,7 +154,53 @@ impl EpochReconciler {
             leases,
             reads,
             zones,
+            snapshots: None,
         }
+    }
+
+    /// Checks each abandoned epoch's fenced snapshot against the ledger manifest (P5-D23).
+    #[must_use]
+    pub fn with_snapshots(mut self, snapshots: Arc<dyn ZoneSnapshotStore>) -> Self {
+        self.snapshots = Some(snapshots);
+        self
+    }
+
+    /// P5-D23 for every older epoch with a fenced snapshot, before anything is released or
+    /// queued.
+    async fn guard(
+        &self,
+        zone: u32,
+        epoch: u64,
+        abandoned: &BTreeSet<u64>,
+    ) -> Result<(), EconomyError> {
+        let Some(store) = &self.snapshots else {
+            return Ok(());
+        };
+        let mut epochs = abandoned.clone();
+        epochs.extend(
+            store
+                .unresolved(ZoneId(zone))
+                .await
+                .map_err(EconomyError::Other)?
+                .into_iter()
+                .map(|e| e.epoch)
+                .filter(|e| *e < epoch),
+        );
+        let chains = self.reads.ground_refund_chains(zone).await?;
+        for older in epochs {
+            let Some(row) = store
+                .get(ZoneId(zone), older)
+                .await
+                .map_err(EconomyError::Other)?
+            else {
+                continue;
+            };
+            let snapshot = super::replay_log::decode_snapshot(&row.snapshot)
+                .map_err(|e| EconomyError::Other(e.into()))?;
+            let (tick, fenced) = fenced_instances(&snapshot);
+            check_fenced(older, tick, &fenced, &chains)?;
+        }
+        Ok(())
     }
 
     /// Graceful close: the closing epoch's final tick is committed; release all its leases.
@@ -122,14 +217,17 @@ impl EpochReconciler {
         epoch: u64,
     ) -> Result<ReconcileReport, EconomyError> {
         let mut report = ReconcileReport::default();
+        let mut by_epoch: BTreeMap<u64, Vec<OpenChain>> = BTreeMap::new();
+        for chain in self.reads.open_ground_refund(zone, epoch).await? {
+            by_epoch.entry(chain.epoch).or_default().push(chain);
+        }
+        // P5-D23: a fenced snapshot that disagrees with the ledger stops everything here.
+        self.guard(zone, epoch, &by_epoch.keys().copied().collect())
+            .await?;
         for older in self.reads.lease_epochs(zone, epoch).await? {
             report
                 .released
                 .extend(self.leases.release_epoch(zone, older).await?);
-        }
-        let mut by_epoch: BTreeMap<u64, Vec<OpenChain>> = BTreeMap::new();
-        for chain in self.reads.open_ground_refund(zone, epoch).await? {
-            by_epoch.entry(chain.epoch).or_default().push(chain);
         }
         for (abandoned, manifest) in by_epoch {
             let job = SystemJob::EpochReconcile(zone, abandoned);

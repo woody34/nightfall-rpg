@@ -265,3 +265,167 @@ async fn postgres_abandoned_epochs_get_one_terminal_row_per_live_instance() {
     .unwrap();
     assert_eq!(voided, 3);
 }
+
+/// A fenced V7 snapshot of zone 1 epoch 1 at tick 11 with one ground item (instance `item`).
+fn fenced_snapshot(item: u64) -> (nightfall_api::domain::zone::ZoneSnapshot, Uuid) {
+    use nightfall_api::domain::zone::*;
+    use nightfall_api::infrastructure::{class_data, economy_data, item_data, rules_data};
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let seed = ZoneSeed {
+        zone: ZoneId(1),
+        epoch: 1,
+    };
+    let state = ZoneState::new_phase5(
+        seed,
+        ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap(),
+        0,
+        rules_data::load_rules(&rules_data::RulesSource::embedded())
+            .unwrap()
+            .rules,
+        class_data::load_classes(&class_data::ClassSource::embedded())
+            .unwrap()
+            .registry,
+        (*bundle.skills).clone(),
+        bundle.items.clone(),
+        ItemInstanceRange::new(1, 1000, 2000).unwrap(),
+        economy_data::embedded_phase5_rules().unwrap(),
+    )
+    .unwrap();
+    let mut snapshot = state.snapshot();
+    snapshot.tick = Tick(11);
+    let instance = ItemInstance {
+        creation_origin: Some(ItemCreationOrigin {
+            zone: ZoneId(1),
+            epoch: 1,
+        }),
+        id: ItemInstanceId::new(item).unwrap(),
+        template_id: 57,
+        count: 3,
+        location: ItemLocation::Ground,
+        slot: None,
+        enchant: 0,
+        augment_id: None,
+        charges: 0,
+        created_tick: Tick(1),
+        revision: 0,
+    };
+    let entity = GroundItem::entity_id(seed.zone, seed.epoch, instance.id, Tick(10));
+    let ground = GroundItem {
+        entity,
+        item: instance,
+        pos: Vec2Fixed::from_tiles(10, 10),
+        dropped_tick: Tick(10),
+        source: GroundSource::NpcLoot {
+            npc: EntityId::from_uuid(Uuid::from_u128(900)),
+        },
+        loot_owner: None,
+        drop_protection: None,
+        decay_due: Some(Tick(6010)),
+    };
+    snapshot
+        .phase5
+        .as_mut()
+        .unwrap()
+        .ground
+        .insert(entity, ground);
+    (snapshot, entity.as_uuid())
+}
+
+async fn store_with(
+    snapshot: &nightfall_api::domain::zone::ZoneSnapshot,
+) -> Arc<nightfall_api::infrastructure::eventlog::InMemoryZoneSnapshotStore> {
+    use nightfall_api::application::replay_log::{
+        encode_snapshot, ZoneSnapshotRow, ZoneSnapshotStore,
+    };
+    let store =
+        Arc::new(nightfall_api::infrastructure::eventlog::InMemoryZoneSnapshotStore::default());
+    let row = ZoneSnapshotRow {
+        zone: nightfall_api::domain::zone::ZoneId(1),
+        epoch: 1,
+        snapshot: encode_snapshot(snapshot).unwrap(),
+        snapshot_seq: nightfall_api::application::replay_log::Seq(1),
+        first_seq: None,
+        time_origin_ms: 0,
+        build_id: String::new(),
+        config_hash: String::new(),
+        schema_version: snapshot.meta.schema_version,
+    };
+    store.insert(&row).await.unwrap();
+    store
+}
+
+/// P5-D23: a fenced ground instance unknown to the ledger is an invariant failure. Nothing is
+/// released and no reconcile runs. A fenced instance that is live in the ledger agrees.
+#[tokio::test]
+async fn a_fenced_snapshot_that_disagrees_with_the_ledger_fails_closed() {
+    let repo = Arc::new(InMemoryEconomyStore::default());
+    let (snapshot, entity) = fenced_snapshot(201);
+    // The ledger knows instance 201 under its ground entity, live; 202 is absent.
+    repo.checkpoint_economy(&write(
+        1,
+        10,
+        vec![OwnerLedgerRow {
+            owner_id: entity,
+            ..born("ground", 0, 1, 10, 201)
+        }],
+    ))
+    .await
+    .unwrap();
+    repo.acquire(&LeaseGrant {
+        zone_id: 1,
+        epoch: 1,
+        account_id: Some(ACCOUNT),
+        operation: "warehouse_deposit".into(),
+        request_key: Uuid::from_u128(9),
+        keys: vec![LeaseKey {
+            kind: LeaseKind::Warehouse,
+            owner: 9,
+        }],
+    })
+    .await
+    .unwrap();
+    let port = Arc::new(Port::default());
+    let agrees = EpochReconciler::new(repo.clone(), repo.clone(), port.clone())
+        .with_snapshots(store_with(&snapshot).await);
+    let (unknown, _) = fenced_snapshot(202);
+    let disagrees = EpochReconciler::new(repo.clone(), repo.clone(), port.clone())
+        .with_snapshots(store_with(&unknown).await);
+    let refused = disagrees.before_admission(1, 3).await.unwrap_err();
+    assert!(
+        matches!(&refused, nightfall_api::application::economy::EconomyError::Constraint(n) if n.starts_with("epoch_reconcile_snapshot_mismatch:1:ground:")),
+        "{refused:?}"
+    );
+    assert!(port.jobs.lock().is_empty(), "no reconcile");
+    assert_eq!(repo.lease_epochs(1, 3).await.unwrap(), vec![1], "nothing released");
+    // An instance whose chain ended before the snapshot tick but is still fenced also disagrees.
+    let closed = Arc::new(InMemoryEconomyStore::default());
+    closed
+        .checkpoint_economy(&write(
+            1,
+            10,
+            vec![OwnerLedgerRow {
+                owner_id: entity,
+                ..born("ground", 0, 1, 10, 201)
+            }],
+        ))
+        .await
+        .unwrap();
+    closed
+        .checkpoint_economy(&write(
+            1,
+            11,
+            vec![OwnerLedgerRow {
+                owner_id: entity,
+                ..ended(0, 1, 11, 201, "decay:11")
+            }],
+        ))
+        .await
+        .unwrap();
+    let stale = EpochReconciler::new(closed.clone(), closed.clone(), port.clone())
+        .with_snapshots(store_with(&snapshot).await);
+    assert!(stale.before_admission(1, 3).await.is_err());
+    // The agreeing snapshot reconciles exactly the live instance.
+    let report = agrees.before_admission(1, 3).await.unwrap();
+    assert_eq!(report.reconciled, vec![(1, 1)]);
+    assert_eq!(report.released.len(), 1);
+}

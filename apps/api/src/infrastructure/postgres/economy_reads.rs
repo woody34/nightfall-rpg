@@ -374,6 +374,32 @@ impl EconomyReadRepository for PgEconomyRepository {
             .collect()
     }
 
+    async fn ground_refund_chains(
+        &self,
+        zone: u32,
+    ) -> Result<Vec<crate::application::economy_reads::ChainEnd>, EconomyError> {
+        let zone = i32::try_from(zone)
+            .map_err(|_| EconomyError::Constraint("economy_read_out_of_range".into()))?;
+        let rows = self
+            .rows(
+                "SELECT DISTINCT ON (owner_kind,owner_id,instance_id) epoch,tick,owner_kind,owner_id,instance_id,jsonb_typeof(delta->'after')='object' AS live FROM item_ledger WHERE zone_id=$1 AND owner_kind IN ('ground','refund') ORDER BY owner_kind,owner_id,instance_id,id DESC",
+                vec![zone.into()],
+            )
+            .await?;
+        rows.iter()
+            .map(|row| {
+                Ok(crate::application::economy_reads::ChainEnd {
+                    epoch: unsigned(get::<i64>(row, "epoch")?)?,
+                    tick: unsigned(get::<i64>(row, "tick")?)?,
+                    owner_kind: get(row, "owner_kind")?,
+                    owner: get(row, "owner_id")?,
+                    instance: unsigned(get::<i64>(row, "instance_id")?)?,
+                    terminal: !get::<Option<bool>>(row, "live")?.unwrap_or(false),
+                })
+            })
+            .collect()
+    }
+
     async fn lease_epochs(&self, zone: u32, epoch: u64) -> Result<Vec<u64>, EconomyError> {
         let zone = i32::try_from(zone)
             .map_err(|_| EconomyError::Constraint("economy_read_out_of_range".into()))?;
