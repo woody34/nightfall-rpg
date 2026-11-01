@@ -398,7 +398,7 @@ impl EconomyCheckpointRepository for PgEconomyRepository {
             ));
         }
         let tx = self.db.begin().await.map_err(classify)?;
-        let result = checkpoint_in(&tx, write).await;
+        let result = checkpoint_in(&tx, write, DeltaPhase::All).await;
         match result {
             Ok(()) => tx.commit().await.map_err(classify),
             Err(error) => {
@@ -410,13 +410,40 @@ impl EconomyCheckpointRepository for PgEconomyRepository {
     }
 }
 
-pub(super) async fn checkpoint_in(
+/// Which container deltas [`checkpoint_in`] applies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum DeltaPhase {
+    /// Every delta, in ascending lease-key order (the standalone economy write).
+    All,
+    /// Only inserts: [`container_removals`] applied the deletes and updates before the item
+    /// settlement (P5-D16).
+    InsertsOnly,
+}
+
+/// P5-D16 step 1: the container deltas that delete or update rows, in ascending lease-key
+/// order, before the item settlement of the same transaction.
+pub(super) async fn container_removals(
     tx: &DatabaseTransaction,
     write: &EconomyCheckpointWrite,
 ) -> Result<(), EconomyError> {
+    for delta in write.ordered_deltas() {
+        if delta.change != DeltaChange::Insert {
+            apply_delta(tx, delta).await?;
+        }
+    }
+    Ok(())
+}
+
+pub(super) async fn checkpoint_in(
+    tx: &DatabaseTransaction,
+    write: &EconomyCheckpointWrite,
+    phase: DeltaPhase,
+) -> Result<(), EconomyError> {
     let zone = i32::try_from(write.zone_id).map_err(|e| EconomyError::Other(e.into()))?;
     for delta in write.ordered_deltas() {
-        apply_delta(tx, delta).await?;
+        if phase == DeltaPhase::All || delta.change == DeltaChange::Insert {
+            apply_delta(tx, delta).await?;
+        }
     }
     for delivery in &write.deliveries {
         execute(tx, "INSERT INTO economy_deliveries(id,target_character,kind,payload,status,revision) VALUES($1,$2,$3,$4,'pending',0)",
@@ -481,16 +508,7 @@ pub(super) async fn checkpoint_in(
 /// Maps an economy failure inside the character checkpoint transaction (story 4.2). The fence
 /// and integrity classes keep their names; anything else keeps the economy error as its cause.
 pub(super) fn checkpoint_error(error: EconomyError) -> crate::application::CheckpointError {
-    use crate::application::CheckpointError;
-    match error {
-        EconomyError::LeaseViolation(key) => {
-            CheckpointError::Constraint(format!("economy_lease_violation:{}", key.canonical()))
-        },
-        EconomyError::Constraint(name) => CheckpointError::Constraint(name),
-        other @ (EconomyError::Busy(_) | EconomyError::Transient(_) | EconomyError::Other(_)) => {
-            CheckpointError::Other(anyhow::Error::new(other))
-        },
-    }
+    crate::application::economy::checkpoint_error(error)
 }
 
 #[async_trait]

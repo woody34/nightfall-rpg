@@ -290,6 +290,14 @@ impl EconomyCheckpointRepository for InMemoryEconomyStore {
                 "economy_receipts_need_character_checkpoint".into(),
             ));
         }
+        self.apply_write(write)
+    }
+}
+
+impl InMemoryEconomyStore {
+    /// The whole write, atomically (dry run over copies, then one assignment). The memory
+    /// character repository calls it inside its combined checkpoint, which holds the receipts.
+    pub(crate) fn apply_write(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError> {
         let mut state = self.lock();
         Self::take_transient(&mut state)?;
         // c-review-4 P2-1: every released lease must still be held by this (zone, epoch); a

@@ -211,6 +211,10 @@ pub struct EconomyCharacterRow {
     pub before: Option<crate::domain::zone::ItemInstance>,
     /// The scalar after the row (`None`: the instance leaves the character).
     pub after: Option<crate::domain::zone::ItemInstance>,
+    /// A `transfer_in` with `before = None` whose `delta.transfer.link` points to a matching
+    /// identity `transfer_out` of the same instance in the same write (design §11.2, B13): the
+    /// only `before = None` row exempt from D67 for an instance with ledger history.
+    pub identity_link: bool,
 }
 
 impl EconomyCharacterRow {
@@ -238,16 +242,71 @@ impl EconomyCharacterRow {
                             .map_err(|_| invalid("economy_character_row_delta")),
                     }
                 };
+            let before = scalar("before")?;
+            let after = scalar("after")?;
+            let identity_link = row.op == "transfer_in"
+                && before.is_none()
+                && after
+                    .as_ref()
+                    .is_some_and(|entered| identity_pair(write, row, entered));
             rows.push(Self {
                 instance: crate::domain::zone::ItemInstanceId::new(row.instance_id)
                     .map_err(|_| invalid("economy_character_row_delta"))?,
                 operation_ordinal: row.operation_ordinal,
-                before: scalar("before")?,
-                after: scalar("after")?,
+                before,
+                after,
+                identity_link,
             });
         }
         Ok(rows)
     }
+}
+
+/// B13: an identity `transfer_out` of the same instance in the same write carries the same
+/// `delta.transfer.link`, leaves its owner whole (`after = None`), and has the same canonical
+/// fields as the entering scalar (design §11.2).
+fn identity_pair(
+    write: &crate::application::economy::EconomyCheckpointWrite,
+    entering: &crate::application::economy::OwnerLedgerRow,
+    entered: &crate::domain::zone::ItemInstance,
+) -> bool {
+    let link = |row: &crate::application::economy::OwnerLedgerRow| {
+        row.delta
+            .get("transfer")
+            .and_then(|t| t.get("link"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+    };
+    let Some(wanted) = link(entering) else {
+        return false;
+    };
+    write.ledger.iter().any(|row| {
+        row.op == "transfer_out"
+            && row.instance_id == entering.instance_id
+            && link(row).as_deref() == Some(wanted.as_str())
+            && row
+                .delta
+                .get("after")
+                .is_none_or(serde_json::Value::is_null)
+            && row
+                .delta
+                .get("before")
+                .and_then(|v| {
+                    serde_json::from_value::<crate::domain::zone::ItemInstance>(v.clone()).ok()
+                })
+                .is_some_and(|left| {
+                    (left.template_id, left.count, left.enchant, left.augment_id, left.charges)
+                        == (
+                            entered.template_id,
+                            entered.count,
+                            entered.enchant,
+                            entered.augment_id,
+                            entered.charges,
+                        )
+                        && left.created_tick == entered.created_tick
+                        && left.creation_origin == entered.creation_origin
+                })
+    })
 }
 
 /// One ledger row of an instance as the scalar chain check reads it: a V6 projection row or an

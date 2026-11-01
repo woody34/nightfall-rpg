@@ -18,8 +18,11 @@
 )]
 mod common;
 use nightfall_api::application::economy::{
-    EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyReceipt, OwnerLedgerRow,
+    ContainerDelta, DeltaChange, EconomyCharacterCheckpointRepository, EconomyCheckpointRepository,
+    EconomyCheckpointWrite, EconomyReceipt, LeaseGrant, LeaseKey, LeaseKind, LeaseRepository,
+    OwnerLedgerRow,
 };
+use nightfall_api::application::economy_reads::EconomyReadRepository;
 use nightfall_api::application::ports::*;
 use nightfall_api::application::{
     CharacterCheckpoint, CharacterRepository, CheckpointError, CheckpointOutcome, IdempotencyKey,
@@ -34,14 +37,16 @@ use nightfall_api::domain::{
     AccountId, Character, CharacterName, DomainEvent, EventMetadata, ItemEventFact, Position, Race,
 };
 use nightfall_api::infrastructure::item_data::{embedded_phase4_bundle, Phase4RuleBundle};
-use nightfall_api::infrastructure::memory::InMemoryCharacterRepository;
+use nightfall_api::infrastructure::memory::{InMemoryCharacterRepository, InMemoryEconomyStore};
 use nightfall_api::infrastructure::postgres::{PgCharacterRepository, PgEconomyRepository};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use uuid::Uuid;
 
 const ACCOUNT: Uuid = Uuid::from_u128(1);
 const GROUND: Uuid = Uuid::from_u128(0x6000);
 const PICKED: u64 = 9_000_001;
+const PICKUP_LINK: &str = "6f1c3c1e-7c55-5d7e-9e1a-000000000001";
 
 /// The starter-kit tick (revision 1), as the Phase 4 settlement fixture builds it.
 async fn starter<R: CharacterRepository + ItemAdmissionRepository>(
@@ -292,7 +297,7 @@ fn pickup(
         1,
         80,
         0,
-        serde_json::json!({"before": ground, "after": null}),
+        serde_json::json!({"before": ground, "after": null, "transfer": {"link": PICKUP_LINK, "mode": "identity"}}),
     )];
     if character_rows {
         ledger.push(row(
@@ -302,7 +307,7 @@ fn pickup(
             1,
             80,
             0,
-            serde_json::json!({"before": null, "after": picked(2)}),
+            serde_json::json!({"before": null, "after": picked(2), "transfer": {"link": PICKUP_LINK, "mode": "identity"}}),
         ));
     }
     let write = EconomyCheckpointWrite {
@@ -515,4 +520,259 @@ async fn postgres_pickup_settles_scalars_economy_rows_and_receipt_in_one_transac
     ));
     // Receipts only settle with a character checkpoint.
     assert!(economy.checkpoint_economy(&write4).await.is_err());
+}
+
+/// One owner row of a deposit or withdraw (identity mode, B13 link).
+fn moved(
+    owner_kind: &str,
+    owner: Uuid,
+    op: &str,
+    tick: u64,
+    item: u64,
+    before: Option<&ItemInstance>,
+    after: Option<&ItemInstance>,
+    link: Option<&str>,
+) -> OwnerLedgerRow {
+    let mut delta = serde_json::json!({"before": before, "after": after});
+    if let Some(link) = link {
+        delta["transfer"] = serde_json::json!({"link": link, "mode": "identity"});
+    }
+    OwnerLedgerRow {
+        owner_kind: owner_kind.into(),
+        owner_id: owner,
+        zone_id: 1,
+        epoch: 1,
+        tick,
+        revision: after.or(before).map_or(0, |i| i.revision),
+        op: op.into(),
+        instance_id: item,
+        operation_ordinal: 0,
+        delta,
+        receipt_ref: None,
+    }
+}
+
+fn located(item: &ItemInstance, location: ItemLocation, revision: u64) -> ItemInstance {
+    ItemInstance {
+        location,
+        revision,
+        ..item.clone()
+    }
+}
+
+/// The next tick's character checkpoint with `instances` at `revision` (no V6 rows).
+fn tick(
+    cp: &CharacterCheckpoint,
+    work: &ItemCheckpointWork,
+    seen: u64,
+    revision: u64,
+    tick: u64,
+    instances: Vec<ItemInstance>,
+) -> (CharacterCheckpoint, ItemCheckpointWork) {
+    let mut checkpoint = work.projection.checkpoint.clone();
+    checkpoint.inventory_revision = revision;
+    checkpoint.instances = instances;
+    checkpoint.instances.sort_by_key(|item| item.id);
+    let mut next = cp.clone();
+    next.revision_seen = seen;
+    next.idempotency = ("save_checkpoint".into(), IdempotencyKey::new());
+    next.phase4 = Some(checkpoint.clone());
+    let mut work = work.clone();
+    work.projection.tick = Tick(tick);
+    work.projection.checkpoint = checkpoint;
+    work.projection.ledger = Vec::new();
+    work.projection.receipts = Vec::new();
+    work.projection.materializations = Vec::new();
+    (next, work)
+}
+
+fn grant(keys: Vec<LeaseKey>, n: u128) -> LeaseGrant {
+    LeaseGrant {
+        zone_id: 1,
+        epoch: 1,
+        account_id: Some(ACCOUNT),
+        operation: "warehouse_deposit".into(),
+        request_key: Uuid::from_u128(n),
+        keys,
+    }
+}
+
+/// P5-D16: a deposit (inventory delete + container Insert) and a withdraw (container Delete +
+/// inventory upsert) of the SAME instance id through `checkpoint_with_economy` with items.
+async fn deposit_and_withdraw<R>(
+    repo: &R,
+    leases: &dyn LeaseRepository,
+    reads: &dyn EconomyReadRepository,
+    bundle: &Phase4RuleBundle,
+    name: &str,
+) where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + EconomyCharacterCheckpointRepository,
+{
+    let (character, cp, work, events) = starter(repo, bundle, name).await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let owner = character.id.as_uuid();
+    let key = LeaseKey::of_uuid(LeaseKind::Warehouse, owner);
+    let item = work.projection.checkpoint.instances[0].clone();
+    let id = item.id.get();
+    let rest: Vec<ItemInstance> = work.projection.checkpoint.instances[1..].to_vec();
+    let link_in = "6f1c3c1e-7c55-5d7e-9e1a-0000000000d1";
+    let link_out = "6f1c3c1e-7c55-5d7e-9e1a-0000000000d2";
+
+    // Deposit, tick 80 (revision 2): the settlement deletes the inventory row, then the
+    // container Insert writes the same id as a warehouse row.
+    leases.acquire(&grant(vec![key], 1)).await.unwrap();
+    let stored = located(&item, ItemLocation::Warehouse, 0);
+    let (cp2, work2) = tick(&cp, &work, 1, 2, 80, rest.clone());
+    let deposit = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 80,
+        deltas: vec![ContainerDelta {
+            lease: key,
+            row_kind: "item_instance".into(),
+            row_key: id.to_string(),
+            change: DeltaChange::Insert,
+            expected_revision: None,
+            columns: [
+                ("character_id", serde_json::json!(owner.to_string())),
+                ("owner_kind", serde_json::json!("warehouse")),
+                ("location", serde_json::json!("warehouse")),
+                ("template_id", serde_json::json!(item.template_id)),
+                ("count", serde_json::json!(item.count)),
+                ("created_tick", serde_json::json!(item.created_tick.0)),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_owned(), v))
+            .collect(),
+        }],
+        ledger: vec![
+            moved("character", owner, "transfer_out", 80, id, Some(&item), None, Some(link_in)),
+            moved("warehouse", owner, "transfer_in", 80, id, None, Some(&stored), Some(link_in)),
+        ],
+        lease_releases: vec![key],
+        ..Default::default()
+    };
+    assert_eq!(
+        repo.checkpoint_with_economy(&cp2, &[], Some(&work2), &deposit)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    let warehouse = reads.container_items("warehouse", owner).await.unwrap();
+    assert_eq!(
+        warehouse.iter().map(|i| i.instance_id).collect::<Vec<_>>(),
+        vec![id],
+        "same id in the warehouse"
+    );
+    let loaded = repo
+        .load_for_admission(character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .phase4
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert!(loaded.instances.iter().all(|i| i.id != item.id), "left the inventory");
+
+    // Withdraw, tick 81 (revision 3): the container Delete runs before the settlement upsert.
+    let back = located(&item, ItemLocation::Inventory, 3);
+    let mut instances = rest.clone();
+    instances.push(back.clone());
+    let (cp3, work3) = tick(&cp, &work, 2, 3, 81, instances);
+    let withdraw = |link: Option<&str>| EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 81,
+        deltas: vec![ContainerDelta {
+            lease: key,
+            row_kind: "item_instance".into(),
+            row_key: id.to_string(),
+            change: DeltaChange::Delete,
+            expected_revision: Some(warehouse[0].revision),
+            columns: serde_json::Map::new(),
+        }],
+        ledger: vec![
+            moved("warehouse", owner, "transfer_out", 81, id, Some(&stored), None, Some(link_out)),
+            moved("character", owner, "transfer_in", 81, id, None, Some(&back), link),
+        ],
+        lease_releases: vec![key],
+        ..Default::default()
+    };
+    // Without the B13 link the instance's history makes the before = None row a D67 reuse.
+    leases.acquire(&grant(vec![key], 2)).await.unwrap();
+    let refused = repo
+        .checkpoint_with_economy(&cp3, &[], Some(&work3), &withdraw(None))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&refused, CheckpointError::Constraint(n) if n == "item_instance_identity_reused"),
+        "{refused:?}"
+    );
+    assert_eq!(
+        reads
+            .container_items("warehouse", owner)
+            .await
+            .unwrap()
+            .len(),
+        1,
+        "nothing written"
+    );
+    assert_eq!(
+        repo.checkpoint_with_economy(&cp3, &[], Some(&work3), &withdraw(Some(link_out)))
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(3)
+    );
+    assert!(reads
+        .container_items("warehouse", owner)
+        .await
+        .unwrap()
+        .is_empty());
+    let loaded = repo
+        .load_for_admission(character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .phase4
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    let returned = loaded.instances.iter().find(|i| i.id == item.id).unwrap();
+    assert_eq!(returned, &back, "same id, same creation origin (the V6 starter birth)");
+}
+
+#[tokio::test]
+async fn memory_deposit_and_withdraw_keep_the_instance_id() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let store = Arc::new(InMemoryEconomyStore::default());
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap()
+        .with_economy(store.clone());
+    deposit_and_withdraw(&repo, store.as_ref(), store.as_ref(), &bundle, "MemoryDeposit").await;
+}
+
+#[tokio::test]
+async fn postgres_deposit_and_withdraw_keep_the_instance_id() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, ACCOUNT).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let economy = PgEconomyRepository::new(
+        nightfall_api::infrastructure::postgres::connection_from_pool(&pool),
+    );
+    deposit_and_withdraw(&repo, &economy, &economy, &bundle, "PgDeposit").await;
 }

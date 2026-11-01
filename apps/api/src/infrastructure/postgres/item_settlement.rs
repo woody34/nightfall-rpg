@@ -123,6 +123,26 @@ pub(super) async fn persist(
     economy: &[crate::application::ports::EconomyCharacterRow],
 ) -> Result<(), CheckpointError> {
     work.validate_before_with_economy(before, rules, economy)?;
+    // D67 for economy rows (design §11.2, B13; P5-D16): a `before = None` character row of an
+    // instance with ledger history is refused unless it is a linked identity `transfer_in`.
+    for row in economy {
+        if row.before.is_none()
+            && !row.identity_link
+            && !before.is_some_and(|cp| cp.instances.iter().any(|item| item.id == row.instance))
+        {
+            let exists = tx
+                .query_one_raw(Statement::from_sql_and_values(
+                    DbBackend::Postgres,
+                    "SELECT instance_id FROM item_ledger WHERE instance_id=$1 LIMIT 1",
+                    [signed(row.instance.get())?.into()],
+                ))
+                .await
+                .map_err(super::character_repository::checkpoint_db_error)?;
+            if exists.is_some() {
+                return Err(CheckpointError::Constraint("item_instance_identity_reused".into()));
+            }
+        }
+    }
     let requests = super::item_admission::load_pending(tx, cp.character_id).await?;
     work.validate_pending(&requests)?;
     persist_range(tx, work).await?;

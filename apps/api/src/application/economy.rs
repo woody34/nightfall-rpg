@@ -782,6 +782,45 @@ pub trait EconomyCheckpointRepository: Send + Sync {
     async fn checkpoint_economy(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError>;
 }
 
+/// The V7 character checkpoint with its economy write: ONE revision-fenced transaction per
+/// character (design §11.5; c-review-6 P3-2, P5-D16). The order inside it is fixed: container
+/// deltas that delete or update rows, then the item settlement, then container inserts, then
+/// deliveries, ledger rows, receipts, lease deletes and the outbox.
+///
+/// Per-character split (c-review-6 P3-6): a tick's `EconomyCheckpoint` is written once per
+/// character. Each write carries that character's checkpoint, its `owner_kind = character` rows
+/// and receipts, and the container/ground rows of the operations that character performed. A
+/// character row of another character is refused (`economy_character_row_foreign`). Operations
+/// that move items between two characters in one atomic step (trade, private store) need a
+/// multi-character writer, which a later story adds; until then they are not settled here.
+#[async_trait]
+pub trait EconomyCharacterCheckpointRepository: Send + Sync {
+    /// Settle the checkpoint, its optional V6 item projection and the economy write atomically.
+    async fn checkpoint_with_economy(
+        &self,
+        cp: &crate::application::CharacterCheckpoint,
+        events: &[crate::domain::DomainEvent],
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: &EconomyCheckpointWrite,
+    ) -> Result<crate::application::CheckpointOutcome, crate::application::CheckpointError>;
+}
+
+/// An economy error inside a character checkpoint: a lease violation and a named constraint are
+/// permanent named constraints; busy, transient and other errors keep the retry class.
+#[must_use]
+pub fn checkpoint_error(error: EconomyError) -> crate::application::CheckpointError {
+    use crate::application::CheckpointError;
+    match error {
+        EconomyError::LeaseViolation(key) => {
+            CheckpointError::Constraint(format!("economy_lease_violation:{}", key.canonical()))
+        },
+        EconomyError::Constraint(name) => CheckpointError::Constraint(name),
+        other @ (EconomyError::Busy(_) | EconomyError::Transient(_) | EconomyError::Other(_)) => {
+            CheckpointError::Other(anyhow::Error::new(other))
+        },
+    }
+}
+
 /// Pending deliveries (design §10.4; E38/E41 queue: ascending id, one per target per tick).
 #[async_trait]
 pub trait DeliveryRepository: Send + Sync {

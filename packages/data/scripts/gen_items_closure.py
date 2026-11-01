@@ -30,8 +30,10 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = 'tables-phase5/items_closure.toml'
-# The V6 item bundle this table extends (Phase4Rules hash, every V6 recording binds it). The Rust
-# loader checks it; here the committed V6 tables must still carry the manifest that produced it.
+# The V6 item bundle this table extends (Phase4Rules hash, every V6 recording binds it). The
+# Phase5Rules loader (P5-D12, zone lane) is to check it; until it does, this script only checks
+# that the committed V6 tables still carry the manifest data_sha256 that produced the table, and
+# table freshness relies on `gen_items.py --check` in check_all.py (c-review-6 P3-5).
 V6_ITEMS_SHA256 = 'bfee2e7d9fb73f53706c7a4afc19f5d095f4d630ca90e9a5747895c0e5472aad'
 V6_MANIFEST_DATA_SHA256 = 'f0e8dc63a0aa8d013b5c4ecf2c0698d64438f914a2a9bc099b48651af9923b5e'
 SUPPORTED_HANDLERS = {'', 'SoulShots', 'SpiritShot', 'BlessedSpiritShot', 'ItemSkills', 'ItemSkillsTemplate', 'EnchantScrolls',

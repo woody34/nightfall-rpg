@@ -630,12 +630,13 @@ async fn claim_learning(
     Ok(None)
 }
 
-impl PgCharacterRepository {
-    /// The V7 economy checkpoint (story 4.2 / E4.5): the character checkpoint, its item
-    /// projection and the economy write in ONE revision-fenced transaction (design §11.5).
-    /// The zone actor's economy settlement calls this, never
-    /// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
-    pub async fn checkpoint_with_economy(
+/// The V7 economy checkpoint (story 4.2 / E4.5, P5-D16): the character checkpoint, its item
+/// projection and the economy write in ONE revision-fenced transaction (design §11.5).
+/// The zone actor's economy settlement calls this, never
+/// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
+#[async_trait]
+impl crate::application::economy::EconomyCharacterCheckpointRepository for PgCharacterRepository {
+    async fn checkpoint_with_economy(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
@@ -650,7 +651,9 @@ impl PgCharacterRepository {
             },
         }
     }
+}
 
+impl PgCharacterRepository {
     #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
     #[tracing::instrument(
         name = "storage",
@@ -940,6 +943,15 @@ impl PgCharacterRepository {
             phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
         }
 
+        // P5-D16: one transaction, in this order: (1) container deltas that delete or update
+        // rows, (2) the item settlement, (3) container inserts, (4) the rest of the economy
+        // write. A withdraw (container Delete + inventory upsert of the same id) and a deposit
+        // (inventory delete + container Insert of the same id) both hold.
+        if let Some(write) = economy {
+            super::economy::container_removals(&tx, write)
+                .await
+                .map_err(super::economy::checkpoint_error)?;
+        }
         if let Some(work) = items {
             super::item_settlement::persist(
                 &tx,
@@ -975,7 +987,7 @@ impl PgCharacterRepository {
         // and the economy outbox commit in this same revision-fenced transaction, after the
         // character fence above; a writer whose leases were released is fenced out.
         if let Some(write) = economy {
-            super::economy::checkpoint_in(&tx, write)
+            super::economy::checkpoint_in(&tx, write, super::economy::DeltaPhase::InsertsOnly)
                 .await
                 .map_err(super::economy::checkpoint_error)?;
             if items.is_some() && !economy_rows.is_empty() {
