@@ -43,6 +43,13 @@ struct State {
         (AccountId, IdempotencyKey),
         (String, crate::application::ports::FrozenLearnResult),
     >,
+    /// Economy receipts (P5-Q13): `(account, operation, request key)`, as `item_mutation_receipts`.
+    economy_receipts:
+        BTreeMap<(AccountId, String, uuid::Uuid), crate::application::economy::EconomyReceipt>,
+    /// The first `before = null` economy ledger row per instance (any owner) settled through the
+    /// combined checkpoint: `(zone, epoch, created_tick)`, the cross-owner birth of P5-Q13.
+    economy_births:
+        BTreeMap<crate::domain::zone::ItemInstanceId, (crate::domain::zone::ZoneId, u64, u64)>,
 }
 
 impl State {
@@ -66,26 +73,33 @@ impl State {
         };
         let named = |name: &str| CheckpointError::Constraint(name.into());
         for item in &mut checkpoint.instances {
+            // P5-Q13, like the Postgres load: the instance's first `before = null` row of any
+            // owner. A V6 row (of any character) first, else the economy birth.
+            // P5-Q13/P5-D22: the first `before = null` row of any owner as staged (the births
+            // map), else the V6 rows of any character.
             let birth = self
-                .item_ledger
-                .iter()
-                .find(|row| {
-                    row.character_id == character
-                        && row.instance_id == item.id
-                        && row.delta.before.is_none()
+                .economy_births
+                .get(&item.id)
+                .map(|(zone, epoch, tick)| (*zone, *epoch, Some(*tick)))
+                .or_else(|| {
+                    self.item_ledger
+                        .iter()
+                        .find(|row| row.instance_id == item.id && row.delta.before.is_none())
+                        .map(|row| {
+                            (
+                                row.zone_id,
+                                row.epoch,
+                                row.delta.after.as_ref().map(|born| born.created_tick.0),
+                            )
+                        })
                 })
                 .ok_or_else(|| named("item_creation_ledger_missing"))?;
-            if birth
-                .delta
-                .after
-                .as_ref()
-                .is_none_or(|born| born.created_tick != item.created_tick)
-            {
+            if birth.2 != Some(item.created_tick.0) {
                 return Err(named("item_creation_ledger_tick"));
             }
             let recorded = crate::domain::zone::ItemCreationOrigin {
-                zone: birth.zone_id,
-                epoch: birth.epoch,
+                zone: birth.0,
+                epoch: birth.1,
             };
             if item
                 .creation_origin
@@ -131,9 +145,17 @@ pub struct InMemoryCharacterRepository {
     classes: Option<Arc<ClassRegistry>>,
     phase3_rules: Option<Arc<Phase3Rules>>,
     phase4_rules: Option<Arc<crate::domain::zone::Phase4Rules>>,
+    economy: Option<Arc<super::InMemoryEconomyStore>>,
 }
 
 impl InMemoryCharacterRepository {
+    /// Attaches the economy store the combined V7 checkpoint writes (P5-D16).
+    #[must_use]
+    pub fn with_economy(mut self, store: Arc<super::InMemoryEconomyStore>) -> Self {
+        self.economy = Some(store);
+        self
+    }
+
     /// Uses the same validated startup catalogue as creation and the zone.
     #[must_use]
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Self {
@@ -270,6 +292,7 @@ impl InMemoryCharacterRepository {
     }
 
     #[allow(clippy::too_many_lines)] // Keep key/fence/validation/atomic mutation ordering visible.
+    #[allow(clippy::too_many_arguments)] // The economy rows join the same validation gate.
     fn checkpoint_locked(
         &self,
         s: &mut State,
@@ -277,6 +300,7 @@ impl InMemoryCharacterRepository {
         events: &[DomainEvent],
         fingerprint: String,
         items: Option<&crate::application::ports::ItemCheckpointWork>,
+        links: &crate::application::ports::IdentityLinks,
     ) -> Result<CheckpointOutcome, CheckpointError> {
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
@@ -327,9 +351,10 @@ impl InMemoryCharacterRepository {
             .transpose()
             .map_err(anyhow::Error::from)?;
         if let Some(work) = items {
-            work.validate_before_with(
+            work.validate_before_with_economy(
                 s.item_inventories.get(&checkpoint.character_id),
                 self.phase4_rules.as_deref(),
+                links,
             )?;
         } else {
             crate::application::ports::validate_item_retention(
@@ -493,7 +518,14 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
             };
         }
         receipt.validate(checkpoint, owner)?;
-        let outcome = self.checkpoint_locked(&mut state, checkpoint, events, fingerprint, None)?;
+        let outcome = self.checkpoint_locked(
+            &mut state,
+            checkpoint,
+            events,
+            fingerprint,
+            None,
+            &crate::application::ports::IdentityLinks::default(),
+        )?;
         if matches!(outcome, CheckpointOutcome::Applied(_) | CheckpointOutcome::Replayed(_)) {
             state.learn_receipts.insert(
                 (receipt.account_id, receipt.key),
@@ -530,13 +562,96 @@ impl crate::application::ports::ItemReceiptRepository for InMemoryCharacterRepos
 
 #[async_trait]
 impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRepository {
-    #[allow(clippy::too_many_lines)] // Same key/fence/child/outbox transaction ordering as Pg.
     async fn checkpoint_items(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
         work: &crate::application::ports::ItemCheckpointWork,
         learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        self.settle_items(cp, events, work, learning, None)
+    }
+}
+
+/// The economy part of a combined memory checkpoint (P5-D16).
+#[derive(Clone, Copy)]
+struct EconomyPart<'a> {
+    store: &'a super::InMemoryEconomyStore,
+    write: &'a crate::application::economy::EconomyCheckpointWrite,
+    links: &'a crate::application::ports::IdentityLinks,
+}
+
+impl State {
+    /// Economy receipts claim their scope like V6 receipts (P5-Q13): `Some(outcome)` stops.
+    fn claim_economy_receipts(
+        &self,
+        owner: AccountId,
+        cp: &CharacterCheckpoint,
+        write: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<Option<CheckpointOutcome>, CheckpointError> {
+        for receipt in &write.receipts {
+            if receipt.character_id != cp.character_id.as_uuid()
+                || receipt.account_id != owner.as_uuid()
+            {
+                return Err(CheckpointError::Constraint("economy_receipt_scope".into()));
+            }
+            if let Some(known) =
+                self.economy_receipts
+                    .get(&(owner, receipt.operation.clone(), receipt.request_key))
+            {
+                return if known.fingerprint == receipt.fingerprint {
+                    Ok(Some(CheckpointOutcome::Stale))
+                } else {
+                    Err(CheckpointError::KeyReused)
+                };
+            }
+        }
+        Ok(None)
+    }
+
+    /// Commit-time bookkeeping of the combined write: receipts and cross-owner births.
+    fn record_economy(
+        &mut self,
+        owner: AccountId,
+        write: &crate::application::economy::EconomyCheckpointWrite,
+    ) {
+        for receipt in &write.receipts {
+            self.economy_receipts
+                .insert((owner, receipt.operation.clone(), receipt.request_key), receipt.clone());
+        }
+        for row in &write.ledger {
+            let Ok(id) = crate::domain::zone::ItemInstanceId::new(row.instance_id) else {
+                continue;
+            };
+            let born = row
+                .delta
+                .get("before")
+                .is_none_or(serde_json::Value::is_null);
+            let tick = row
+                .delta
+                .get("after")
+                .and_then(|after| after.get("created_tick"))
+                .and_then(serde_json::Value::as_u64);
+            if let (true, Some(tick)) = (born, tick) {
+                self.economy_births.entry(id).or_insert((
+                    crate::domain::zone::ZoneId(row.zone_id),
+                    row.epoch,
+                    tick,
+                ));
+            }
+        }
+    }
+}
+
+impl InMemoryCharacterRepository {
+    #[allow(clippy::too_many_lines)] // Same key/fence/child/outbox transaction ordering as Pg.
+    fn settle_items(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        work: &crate::application::ports::ItemCheckpointWork,
+        learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
+        economy: Option<EconomyPart<'_>>,
     ) -> Result<CheckpointOutcome, CheckpointError> {
         use crate::application::ports::PendingItemStatus;
         let mut current = self.state.lock();
@@ -584,6 +699,11 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
                 };
             }
         }
+        if let Some(part) = economy {
+            if let Some(outcome) = current.claim_economy_receipts(owner, cp, part.write)? {
+                return Ok(outcome);
+            }
+        }
         if let Some(receipt) = learning {
             if let Some((stored, _)) = current.learn_receipts.get(&(owner, receipt.key)) {
                 return if *stored == receipt.request_fingerprint {
@@ -601,7 +721,19 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
                 .item_inventories
                 .insert(cp.character_id, before.clone());
         }
-        let outcome = self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work))?;
+        let none = crate::application::ports::IdentityLinks::default();
+        let links = economy.map_or(&none, |part| part.links);
+        // B13: linked identity transfer_in rows bring a known id (exempt from D67).
+        let linked: std::collections::BTreeSet<crate::domain::zone::ItemInstanceId> = work
+            .projection
+            .ledger
+            .iter()
+            .filter(|delta| links.linked(delta))
+            .map(|delta| delta.instance)
+            .collect();
+        let history = economy.map(|part| part.store.ledger()).unwrap_or_default();
+        let outcome =
+            self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work), links)?;
         if !matches!(outcome, CheckpointOutcome::Applied(_)) {
             return Ok(outcome);
         }
@@ -624,13 +756,17 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
         }
         for row in work.ledger_entries()? {
             if row.delta.before.is_none()
+                && !linked.contains(&row.instance_id)
                 && !before
                     .as_ref()
                     .is_some_and(|cp| cp.instances.iter().any(|item| item.id == row.instance_id))
-                && staged
+                && (staged
                     .item_ledger
                     .iter()
                     .any(|known| known.instance_id == row.instance_id)
+                    || history
+                        .iter()
+                        .any(|known| known.instance_id == row.instance_id.get()))
             {
                 return Err(CheckpointError::Constraint("item_instance_identity_reused".into()));
             }
@@ -654,6 +790,15 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
                 )
             }) {
                 return Err(CheckpointError::Constraint("item_ledger_logical_key".into()));
+            }
+            if row.delta.before.is_none() {
+                if let Some(born) = &row.delta.after {
+                    staged.economy_births.entry(row.instance_id).or_insert((
+                        row.zone_id,
+                        row.epoch,
+                        born.created_tick.0,
+                    ));
+                }
             }
             staged.item_ledger.push(row);
         }
@@ -698,6 +843,69 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
                 (receipt.request_fingerprint.clone(), receipt.result.clone()),
             );
         }
+        if let Some(part) = economy {
+            // Every character-side check passed; the store write is atomic on its own and
+            // nothing is committed here unless it succeeds.
+            let facts = crate::application::economy_facts::FactRow::of_projection(
+                cp.character_id.as_uuid(),
+                work,
+            );
+            part.store
+                .apply_write(part.write, &facts)
+                .map_err(crate::application::economy::checkpoint_error)?;
+            staged.record_economy(owner, part.write);
+        }
+        *current = staged;
+        Ok(outcome)
+    }
+}
+
+#[async_trait]
+impl crate::application::economy::EconomyCharacterCheckpointRepository
+    for InMemoryCharacterRepository
+{
+    async fn checkpoint_with_economy(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        economy
+            .validate()
+            .map_err(crate::application::economy::checkpoint_error)?;
+        let links = crate::application::ports::IdentityLinks::of_write(economy)?;
+        let store = self
+            .economy
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("the memory economy store is not attached"))?;
+        let part = EconomyPart {
+            store,
+            write: economy,
+            links: &links,
+        };
+        if let Some(work) = items {
+            return self.settle_items(cp, events, work, None, Some(part));
+        }
+        let mut current = self.state.lock();
+        let owner = current
+            .characters
+            .get(&cp.character_id)
+            .ok_or(CheckpointError::NotFound)?
+            .account_id;
+        if let Some(outcome) = current.claim_economy_receipts(owner, cp, economy)? {
+            return Ok(outcome);
+        }
+        let mut staged = current.clone();
+        let outcome =
+            self.checkpoint_locked(&mut staged, cp, events, cp.fingerprint(events), None, &links)?;
+        if !matches!(outcome, CheckpointOutcome::Applied(_)) {
+            return Ok(outcome);
+        }
+        store
+            .apply_write(economy, &[])
+            .map_err(crate::application::economy::checkpoint_error)?;
+        staged.record_economy(owner, economy);
         *current = staged;
         Ok(outcome)
     }
@@ -895,7 +1103,14 @@ impl CharacterRepository for InMemoryCharacterRepository {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
         let mut s = self.state.lock();
-        self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events), None)
+        self.checkpoint_locked(
+            &mut s,
+            checkpoint,
+            events,
+            checkpoint.fingerprint(events),
+            None,
+            &crate::application::ports::IdentityLinks::default(),
+        )
     }
 }
 

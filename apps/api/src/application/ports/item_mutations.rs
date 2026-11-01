@@ -207,6 +207,112 @@ pub struct ItemCheckpointWork {
     pub allocation: ItemInstanceRange,
     pub projection: Phase4Projection,
 }
+
+/// The `economy` audit cause of a V7 character row (P5-D22): `{receipt, cause?, link?, mode?,
+/// peer_owner_kind?, peer_owner?, peer_instance?}`.
+#[must_use]
+pub fn economy_cause(
+    delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+) -> Option<&crate::domain::zone::phase4_projection::ItemAuditEvidence> {
+    delta.causes.iter().find(|cause| cause.family == "economy")
+}
+
+/// A text field of an `economy` cause.
+#[must_use]
+pub fn economy_text<'a>(
+    cause: &'a crate::domain::zone::phase4_projection::ItemAuditEvidence,
+    name: &str,
+) -> Option<&'a str> {
+    match cause.fields.get(name) {
+        Some(crate::domain::zone::phase4_projection::ItemEvidenceValue::Text(text)) => {
+            Some(text.as_str())
+        },
+        _ => None,
+    }
+}
+
+/// B13 identity links of an economy write (design §11.2; P5-D22): every non-character
+/// `transfer_out` that leaves its owner whole, by `delta.transfer.link`. A character
+/// `transfer_in` with `before = None` and the same link, instance and canonical fields is the
+/// only `before = None` row exempt from D67 (and from the allocator rule) for a known instance.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IdentityLinks(BTreeMap<String, (u64, crate::domain::zone::ItemInstance)>);
+
+impl IdentityLinks {
+    /// The links of a write. Character rows are refused: under P5-D22 they travel in the
+    /// character's item projection, never in the economy write.
+    pub fn of_write(
+        write: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<Self, CheckpointError> {
+        let mut links = BTreeMap::new();
+        for row in &write.ledger {
+            if row.owner_kind == "character" {
+                return Err(invalid("economy_character_row_in_economy_write"));
+            }
+            let link = row
+                .delta
+                .get("transfer")
+                .and_then(|t| t.get("link"))
+                .and_then(serde_json::Value::as_str);
+            let whole = row
+                .delta
+                .get("after")
+                .is_none_or(serde_json::Value::is_null);
+            if let (true, Some(link), true) = (row.op == "transfer_out", link, whole) {
+                let left = row
+                    .delta
+                    .get("before")
+                    .cloned()
+                    .and_then(|v| serde_json::from_value(v).ok())
+                    .ok_or_else(|| invalid("economy_transfer_scalar"))?;
+                links.insert(link.to_owned(), (row.instance_id, left));
+            }
+        }
+        Ok(Self(links))
+    }
+
+    /// Whether a projection row is a linked identity `transfer_in` (canonical fields equal).
+    #[must_use]
+    pub fn linked(&self, delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan) -> bool {
+        if delta.operation != ItemOperation::TransferIn || delta.before.is_some() {
+            return false;
+        }
+        let (Some(entered), Some(cause)) = (delta.after.as_ref(), economy_cause(delta)) else {
+            return false;
+        };
+        let identity = economy_text(cause, "mode") == Some("identity");
+        let Some((instance, left)) = economy_text(cause, "link").and_then(|l| self.0.get(l)) else {
+            return false;
+        };
+        identity
+            && *instance == delta.instance.get()
+            && (left.template_id, left.count, left.enchant, left.augment_id, left.charges)
+                == (
+                    entered.template_id,
+                    entered.count,
+                    entered.enchant,
+                    entered.augment_id,
+                    entered.charges,
+                )
+            && left.created_tick == entered.created_tick
+            && left.creation_origin == entered.creation_origin
+    }
+}
+
+/// A character `transfer_in` whose `economy` cause declares identity mode (design §11.2).
+fn identity_transfer_in(delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan) -> bool {
+    delta.operation == ItemOperation::TransferIn
+        && economy_cause(delta).and_then(|cause| economy_text(cause, "mode")) == Some("identity")
+}
+
+/// One ledger row of an instance as the scalar chain check reads it.
+struct ChainRow<'a> {
+    ordinal: u32,
+    before: Option<&'a crate::domain::zone::ItemInstance>,
+    after: Option<&'a crate::domain::zone::ItemInstance>,
+    v6: Option<&'a crate::domain::zone::phase4_projection::ItemDeltaPlan>,
+}
+
 impl ItemCheckpointWork {
     /// Structural agreement with the ordinary checkpoint; contextual fold validation is zone-owned.
     pub fn validate(
@@ -294,12 +400,14 @@ impl ItemCheckpointWork {
         }
         self.validate_count_caps(rules)?;
         self.validate_refines(rules)?;
-        // Retained creation ticks belong to their origin epoch, whose clock may be ahead.
+        // Retained creation ticks belong to their origin epoch, whose clock may be ahead. An
+        // identity transfer_in keeps its source's creation (B13; the link is checked by
+        // `validate_before_with_economy`).
         for item in self
             .projection
             .ledger
             .iter()
-            .filter(|delta| delta.before.is_none())
+            .filter(|delta| delta.before.is_none() && !identity_transfer_in(delta))
             .flat_map(|delta| delta.after.iter())
         {
             if item.created_tick > self.projection.tick
@@ -499,11 +607,23 @@ impl ItemCheckpointWork {
     /// As [`Self::validate_before`], with the bound item rules (D127: an `insufficient`
     /// automatic-shot drop is checked against the equipped weapon's per-shot requirement;
     /// without rules it fails closed).
-    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
     pub fn validate_before_with(
         &self,
         before: Option<&Phase4Checkpoint>,
         rules: Option<&crate::domain::zone::Phase4Rules>,
+    ) -> Result<(), CheckpointError> {
+        self.validate_before_with_economy(before, rules, &IdentityLinks::default())
+    }
+
+    /// As [`Self::validate_before_with`], with the B13 identity links of the tick's economy
+    /// write (P5-D22: the character's economy rows are ordinary projection rows, one D66 chain
+    /// with the V6 rows). Without links it is exactly the V6 rule.
+    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
+    pub fn validate_before_with_economy(
+        &self,
+        before: Option<&Phase4Checkpoint>,
+        rules: Option<&crate::domain::zone::Phase4Rules>,
+        links: &IdentityLinks,
     ) -> Result<(), CheckpointError> {
         let kit = self
             .projection
@@ -613,53 +733,56 @@ impl ItemCheckpointWork {
         for id in &changed_ids {
             let mut endpoint = old.get(id).copied();
             let (mut consumed, mut ended) = (false, false);
-            for (position, delta) in self
+            let rows: Vec<ChainRow<'_>> = self
                 .projection
                 .ledger
                 .iter()
                 .filter(|delta| delta.instance == *id)
-                .enumerate()
-            {
-                if delta.before.as_ref() != endpoint {
+                .map(|delta| ChainRow {
+                    ordinal: delta.operation_ordinal,
+                    before: delta.before.as_ref(),
+                    after: delta.after.as_ref(),
+                    v6: Some(delta),
+                })
+                .collect();
+            for (position, row) in rows.iter().enumerate() {
+                if row.before != endpoint {
                     return Err(invalid("item_ledger_scalar_continuity"));
                 }
+                let operation = row.v6.map(|delta| delta.operation);
                 // D66/D94: [non-terminal rows in cause order..., the single Consume aggregate, at
                 // most one terminal row (after = None: whole transfer-out, Destroy, Crystallize)];
                 // nothing follows a terminal row. D100: non-terminal rows keep D69 cause order,
                 // so a credit may follow a non-Consume debit (partial Destroy, then a crystal
                 // refund); continuity, conservation and the D74 caps still bind every row.
-                let terminal = delta.operation != ItemOperation::Consume && delta.after.is_none();
+                let terminal = operation != Some(ItemOperation::Consume) && row.after.is_none();
                 if ended || (consumed && !terminal) {
                     return Err(invalid("item_ledger_row_order"));
                 }
                 ended = terminal;
-                // D76/D55: the ordinal is this row's canonical position 0..n-1 among the
+                // D76/D55/T1: the ordinal is this row's canonical position 0..n-1 among the
                 // instance's rows this tick, so it strictly increases and every row of one
                 // logical operation (implicit Unequip + Destroy) takes its own ordinal; under D94
                 // the Consume aggregate holds n-1, or n-2 when a terminal row follows it.
-                if u64::from(delta.operation_ordinal)
-                    != u64::try_from(position).map_err(anyhow::Error::from)?
-                {
+                if u64::from(row.ordinal) != u64::try_from(position).map_err(anyhow::Error::from)? {
                     return Err(invalid("item_ledger_row_ordinal"));
                 }
-                if delta
-                    .after
-                    .as_ref()
-                    .is_some_and(|item| item.revision != revision)
-                {
+                if row.after.is_some_and(|item| item.revision != revision) {
                     return Err(invalid("item_ledger_revision_step"));
                 }
-                let difference = i128::from(delta.after.as_ref().map_or(0, |item| item.count))
-                    .checked_sub(i128::from(delta.before.as_ref().map_or(0, |item| item.count)))
-                    .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
-                if difference != i128::from(delta.count_delta) {
-                    return Err(invalid("item_ledger_count_conservation"));
+                if let Some(delta) = row.v6 {
+                    let difference = i128::from(delta.after.as_ref().map_or(0, |item| item.count))
+                        .checked_sub(i128::from(delta.before.as_ref().map_or(0, |item| item.count)))
+                        .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+                    if difference != i128::from(delta.count_delta) {
+                        return Err(invalid("item_ledger_count_conservation"));
+                    }
+                    if delta.operation == ItemOperation::Consume {
+                        validate_consumption(delta, rules)?;
+                        consumed = true;
+                    }
                 }
-                if delta.operation == ItemOperation::Consume {
-                    validate_consumption(delta, rules)?;
-                    consumed = true;
-                }
-                endpoint = delta.after.as_ref();
+                endpoint = row.after;
             }
             if endpoint != new.get(id).copied() {
                 return Err(invalid("item_ledger_final_scalar"));
@@ -680,9 +803,15 @@ impl ItemCheckpointWork {
                     return Err(invalid("item_instance_creation_immutable"));
                 }
             }
+            // B13: an identity transfer_in must match a transfer_out link of the same write.
+            if identity_transfer_in(delta) && delta.before.is_none() && !links.linked(delta) {
+                return Err(invalid("economy_transfer_unlinked"));
+            }
+            // B13: a linked identity transfer_in keeps the id its source owner had.
+            let allocated = start <= delta.instance.get() && delta.instance.get() < next;
             if delta.before.is_none()
                 && !old.contains_key(&delta.instance)
-                && !(start <= delta.instance.get() && delta.instance.get() < next)
+                && !(allocated || links.linked(delta))
             {
                 return Err(invalid("item_checkpoint_allocator"));
             }
@@ -1014,6 +1143,14 @@ pub trait ItemCheckpointRepository: ItemReceiptRepository + Send + Sync {
     ) -> Result<CheckpointOutcome, CheckpointError>;
 }
 
+/// The `item_ledger.op` spelling of a projection operation (`None` for an owner sidecar).
+#[must_use]
+pub fn ledger_op_name(operation: ItemOperation) -> Option<&'static str> {
+    ledger_operation(operation)
+        .ok()
+        .map(ItemLedgerOperation::as_str)
+}
+
 fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, CheckpointError> {
     Ok(match operation {
         ItemOperation::Grant => ItemLedgerOperation::Grant,
@@ -1030,18 +1167,18 @@ fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, Che
         ItemOperation::Exchange => ItemLedgerOperation::Exchange,
         ItemOperation::Use => ItemLedgerOperation::Use,
         ItemOperation::ToggleAutoShot => return Err(invalid("item_ledger_owner_sidecar")),
-        // P5-D22: V7 economy rows; the economy checkpoint writer (C lane) owns their mapping.
-        ItemOperation::TransferOut
-        | ItemOperation::TransferIn
-        | ItemOperation::PartySplit
-        | ItemOperation::Sweep
-        | ItemOperation::Harvest
-        | ItemOperation::Purchase
-        | ItemOperation::SaleProceeds
-        | ItemOperation::Craft
-        | ItemOperation::CodCredit
-        | ItemOperation::AuctionAward
-        | ItemOperation::ManorReward => return Err(invalid("item_ledger_v7_economy_op")),
+        // P5-D22: the V7 character rows of the economy operations (design §11.3 op values).
+        ItemOperation::TransferOut => ItemLedgerOperation::TransferOut,
+        ItemOperation::TransferIn => ItemLedgerOperation::TransferIn,
+        ItemOperation::PartySplit => ItemLedgerOperation::PartySplit,
+        ItemOperation::Sweep => ItemLedgerOperation::Sweep,
+        ItemOperation::Harvest => ItemLedgerOperation::Harvest,
+        ItemOperation::Purchase => ItemLedgerOperation::Purchase,
+        ItemOperation::SaleProceeds => ItemLedgerOperation::SaleProceeds,
+        ItemOperation::Craft => ItemLedgerOperation::Craft,
+        ItemOperation::CodCredit => ItemLedgerOperation::CodCredit,
+        ItemOperation::AuctionAward => ItemLedgerOperation::AuctionAward,
+        ItemOperation::ManorReward => ItemLedgerOperation::ManorReward,
     })
 }
 /// D68 pinned stack maxima. L2ItemInstance.java:422 caps adena (template 57) at `MaxAdena`

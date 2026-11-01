@@ -630,12 +630,13 @@ async fn claim_learning(
     Ok(None)
 }
 
-impl PgCharacterRepository {
-    /// The V7 economy checkpoint (story 4.2 / E4.5): the character checkpoint, its item
-    /// projection and the economy write in ONE revision-fenced transaction (design §11.5).
-    /// The zone actor's economy settlement calls this, never
-    /// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
-    pub async fn checkpoint_with_economy(
+/// The V7 economy checkpoint (story 4.2 / E4.5, P5-D16): the character checkpoint, its item
+/// projection and the economy write in ONE revision-fenced transaction (design §11.5).
+/// The zone actor's economy settlement calls this, never
+/// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
+#[async_trait]
+impl crate::application::economy::EconomyCharacterCheckpointRepository for PgCharacterRepository {
+    async fn checkpoint_with_economy(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
@@ -650,7 +651,9 @@ impl PgCharacterRepository {
             },
         }
     }
+}
 
+impl PgCharacterRepository {
     #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
     #[tracing::instrument(
         name = "storage",
@@ -672,6 +675,14 @@ impl PgCharacterRepository {
             // Structural refusal before any row is locked (design §11.5).
             write.validate().map_err(super::economy::checkpoint_error)?;
         }
+        // P5-Q13: the economy rows of this character are the ledger of its changed scalars,
+        // which only the V6 item projection writes.
+        // P5-D22: the character's economy rows are in the item projection; the economy write
+        // carries the other owners and the B13 links (character rows refused).
+        let links = economy
+            .map(crate::application::ports::IdentityLinks::of_write)
+            .transpose()?
+            .unwrap_or_default();
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
@@ -760,6 +771,35 @@ impl PgCharacterRepository {
             if super::item_settlement::claim_receipts(&tx, cp, work).await? {
                 tx.rollback().await.map_err(other)?;
                 return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
+            }
+        }
+        // P5-Q13: economy receipts claim their request scope like V6 receipts, before the
+        // revision fence: a known key with the same fingerprint is a replay of a settled
+        // command (nothing of this draft is applied); another fingerprint is the D43 conflict.
+        if let Some(write) = economy {
+            for receipt in &write.receipts {
+                if receipt.character_id != cp.character_id.as_uuid()
+                    || receipt.account_id != account
+                {
+                    return Err(CheckpointError::Constraint("economy_receipt_scope".into()));
+                }
+                let claim = idempotency::claim(
+                    &tx,
+                    AccountId::from_uuid(account),
+                    &receipt.operation,
+                    &IdempotencyKey::from_uuid(receipt.request_key),
+                    &receipt.fingerprint,
+                    receipt.response(),
+                )
+                .await
+                .map_err(checkpoint_anyhow_error)?;
+                if let Claim::Existing { fingerprint, .. } = claim {
+                    if fingerprint != receipt.fingerprint {
+                        return Err(CheckpointError::KeyReused);
+                    }
+                    tx.rollback().await.map_err(other)?;
+                    return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
+                }
             }
         }
         if let Some(receipt) = receipt {
@@ -871,7 +911,11 @@ impl PgCharacterRepository {
         let phase4_original =
             super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
         if let Some(work) = items {
-            work.validate_before_with(phase4_original.as_ref(), self.phase4_rules.as_deref())?;
+            work.validate_before_with_economy(
+                phase4_original.as_ref(),
+                self.phase4_rules.as_deref(),
+                &links,
+            )?;
         } else {
             crate::application::ports::validate_item_retention(
                 phase4_original.as_ref(),
@@ -894,6 +938,23 @@ impl PgCharacterRepository {
             phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
         }
 
+        // P5-D16: one transaction, in this order: (1) container deltas that delete or update
+        // rows, (2) the item settlement, (3) container inserts, (4) the rest of the economy
+        // write. A withdraw (container Delete + inventory upsert of the same id) and a deposit
+        // (inventory delete + container Insert of the same id) both hold.
+        let character_facts: Vec<crate::application::economy_facts::FactRow> = items
+            .map(|work| {
+                crate::application::economy_facts::FactRow::of_projection(
+                    cp.character_id.as_uuid(),
+                    work,
+                )
+            })
+            .unwrap_or_default();
+        if let Some(write) = economy {
+            super::economy::container_removals(&tx, write)
+                .await
+                .map_err(super::economy::checkpoint_error)?;
+        }
         if let Some(work) = items {
             super::item_settlement::persist(
                 &tx,
@@ -901,6 +962,7 @@ impl PgCharacterRepository {
                 work,
                 phase4_original.as_ref(),
                 self.phase4_rules.as_deref(),
+                &links,
             )
             .await?;
         } else if let Some(phase4) = &cp.phase4 {
@@ -928,7 +990,24 @@ impl PgCharacterRepository {
         // and the economy outbox commit in this same revision-fenced transaction, after the
         // character fence above; a writer whose leases were released is fenced out.
         if let Some(write) = economy {
-            super::economy::checkpoint_in(&tx, write)
+            super::economy::checkpoint_in(
+                &tx,
+                write,
+                super::economy::DeltaPhase::InsertsOnly,
+                &character_facts,
+            )
+            .await
+            .map_err(super::economy::checkpoint_error)?;
+        } else if !character_facts.is_empty() {
+            // P5-D18: a V7 tick with only character rows (for example a vendor buy).
+            let facts = crate::application::economy_facts::derive_facts(
+                items.map_or(0, |w| w.zone.0),
+                items.map_or(0, |w| w.epoch),
+                items.map_or(0, |w| w.projection.tick.0),
+                &character_facts,
+            )
+            .map_err(super::economy::checkpoint_error)?;
+            super::economy::insert_facts(&tx, facts.iter())
                 .await
                 .map_err(super::economy::checkpoint_error)?;
         }

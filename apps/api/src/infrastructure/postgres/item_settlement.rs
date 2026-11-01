@@ -120,12 +120,13 @@ pub(super) async fn persist(
     work: &ItemCheckpointWork,
     before: Option<&Phase4Checkpoint>,
     rules: Option<&crate::domain::zone::Phase4Rules>,
+    links: &crate::application::ports::IdentityLinks,
 ) -> Result<(), CheckpointError> {
-    work.validate_before_with(before, rules)?;
+    work.validate_before_with_economy(before, rules, links)?;
     let requests = super::item_admission::load_pending(tx, cp.character_id).await?;
     work.validate_pending(&requests)?;
     persist_range(tx, work).await?;
-    persist_rows(tx, cp.character_id, &work.projection.checkpoint, before, work).await?;
+    persist_rows(tx, cp.character_id, &work.projection.checkpoint, before, work, links).await?;
     for row in work.ledger_entries()? {
         execute(tx, "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
             vec![row.character_id.as_uuid().into(), i32::try_from(row.zone_id.0).map_err(anyhow::Error::from)?.into(),
@@ -134,8 +135,9 @@ pub(super) async fn persist(
                 serde_json::to_value(&row.delta).map_err(anyhow::Error::from)?.into(), row.receipt_ref.into()]).await?;
     }
     // D76: the whole tick is appended, so check row-position ordinals now; a violation is a
-    // permanent named constraint here rather than a retryable commit failure.
-    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
+    // permanent named constraint here rather than a retryable commit failure. Under P5-D22 the
+    // character's V7 rows are in this projection, so the character chains are complete here.
+    check_row_ordinals(tx).await?;
     for receipt in work.receipts(cp)? {
         execute(tx, "INSERT INTO item_mutation_receipts(account_id,operation,key,character_id,fingerprint,response) VALUES($1,$2,$3,$4,$5,$6)",
             vec![receipt.account_id.as_uuid().into(), receipt.operation.as_str().into(), receipt.key.into(),
@@ -150,6 +152,12 @@ pub(super) async fn persist(
     }
     super::phase4_checkpoint::persist_retained(tx, cp.character_id, &work.projection.checkpoint)
         .await?;
+    Ok(())
+}
+
+/// D76/T1: check the deferred row-ordinal trigger now, as a named permanent constraint.
+pub(super) async fn check_row_ordinals(tx: &DatabaseTransaction) -> Result<(), CheckpointError> {
+    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
     Ok(())
 }
 
@@ -175,10 +183,13 @@ async fn persist_rows(
     after: &Phase4Checkpoint,
     before: Option<&Phase4Checkpoint>,
     work: &ItemCheckpointWork,
+    links: &crate::application::ports::IdentityLinks,
 ) -> Result<(), CheckpointError> {
-    // Also audit IDs allocated and destroyed within this one tick: they cannot be reused.
+    // Also audit IDs allocated and destroyed within this one tick: they cannot be reused. B13:
+    // a linked identity transfer_in brings a known id (P5-D16, P5-D22).
     for delta in &work.projection.ledger {
         if delta.before.is_none()
+            && !links.linked(delta)
             && !before.is_some_and(|cp| cp.instances.iter().any(|item| item.id == delta.instance))
         {
             let exists = tx

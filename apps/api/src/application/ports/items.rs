@@ -215,6 +215,18 @@ pub enum ItemLedgerOperation {
     CancelRefine,
     Exchange,
     Use,
+    // V7 only (P5-D22, design §11.3).
+    TransferOut,
+    TransferIn,
+    PartySplit,
+    Sweep,
+    Harvest,
+    Purchase,
+    SaleProceeds,
+    Craft,
+    CodCredit,
+    AuctionAward,
+    ManorReward,
 }
 impl ItemLedgerOperation {
     /// Stable SQL spelling; never derive it from a client-provided string.
@@ -233,6 +245,17 @@ impl ItemLedgerOperation {
             Self::CancelRefine => "cancel_refine",
             Self::Exchange => "exchange",
             Self::Use => "use",
+            Self::TransferOut => "transfer_out",
+            Self::TransferIn => "transfer_in",
+            Self::PartySplit => "party_split",
+            Self::Sweep => "sweep",
+            Self::Harvest => "harvest",
+            Self::Purchase => "purchase",
+            Self::SaleProceeds => "sale_proceeds",
+            Self::Craft => "craft",
+            Self::CodCredit => "cod_credit",
+            Self::AuctionAward => "auction_award",
+            Self::ManorReward => "manor_reward",
         }
     }
 }

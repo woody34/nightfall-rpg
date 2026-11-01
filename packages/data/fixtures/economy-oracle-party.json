@@ -735,6 +735,165 @@
    },
    "rule": "award_xp: floor(xp * 105 / 100) for race human (Phase 2), SP unchanged"
   },
+  "int_saturation_g8": {
+   "G": "8",
+   "S": 506587224,
+   "X": 4308308679,
+   "add_sp_cap": {
+    "at_max": 2147483647,
+    "below": 2147483647,
+    "negative": 5,
+    "plain": 15
+   },
+   "npc": 29068,
+   "party": {
+    "R": {
+     "1": {
+      "damage": 700
+     },
+     "2": {
+      "damage": 300
+     }
+    },
+    "addsp_before_cutoff": [
+     228161625,
+     202108568,
+     177634483
+    ],
+    "bonus_sp": 607904678,
+    "cutoff_sp_int_overflow_members": [
+     0,
+     1,
+     2
+    ],
+    "players": {
+     "1": {
+      "alive": true,
+      "in_range": true,
+      "level": 85
+     },
+     "2": {
+      "alive": true,
+      "in_range": true,
+      "level": 80
+     },
+     "3": {
+      "alive": true,
+      "in_range": true,
+      "level": 75
+     }
+    },
+    "result": {
+     "awards": {
+      "1": [
+       967204323,
+       13413260
+      ],
+      "2": [
+       856762307,
+       0
+      ],
+      "3": [
+       225904124,
+       10340671
+      ]
+     },
+     "passes": [
+      {
+       "branch": "party",
+       "distribution": [
+        [
+         967204323,
+         13413260
+        ],
+        [
+         856762307,
+         -12639796
+        ],
+        [
+         225904124,
+         10340671
+        ]
+       ],
+       "exp": 2147483648,
+       "partyDmg": 1000,
+       "partyLvl": 85,
+       "partyMul_bits": "3ff0000000000000",
+       "rewarded": [
+        1,
+        2,
+        3
+       ],
+       "sp": 506587232,
+       "visit": 1
+      }
+     ],
+     "total": 1000
+    }
+   },
+   "party_g1": {
+    "S": 63323403,
+    "X": 538538584,
+    "addsp_before_cutoff": [
+     28520202,
+     25263570,
+     22204310
+    ],
+    "result": {
+     "awards": {
+      "1": [
+       242552172,
+       0
+      ],
+      "2": [
+       214855903,
+       0
+      ],
+      "3": [
+       56651458,
+       6661293
+      ]
+     },
+     "passes": [
+      {
+       "branch": "party",
+       "distribution": [
+        [
+         242552172,
+         -14429470
+        ],
+        [
+         214855903,
+         -17686102
+        ],
+        [
+         56651458,
+         6661293
+        ]
+       ],
+       "exp": 538538560,
+       "partyDmg": 1000,
+       "partyLvl": 85,
+       "partyMul_bits": "3ff0000000000000",
+       "rewarded": [
+        1,
+        2,
+        3
+       ],
+       "sp": 63323404,
+       "visit": 1
+      }
+     ],
+     "total": 1000
+    }
+   },
+   "solo_diff0_full_damage": [
+    2147483647,
+    506587224
+   ],
+   "solo_exp_after_penalty": 2147483648,
+   "sp_times_partymul_at_int_max": 2147483647
+  },
   "n5": {
    "differences_below_2e6": 74892,
    "e45": 62,

@@ -83,6 +83,11 @@ pub struct Dependencies {
     pub audit: Arc<dyn SessionAudit>,
     /// Per-session limits of the real-time channel.
     pub session_limits: SessionLimits,
+    /// Read side of the DB-only economy (story 4.6); None keeps the Phase 5 reads
+    /// `UNAVAILABLE`.
+    pub economy_reads: Option<Arc<dyn application::EconomyReadRepository>>,
+    /// The epoch's `Phase5Rules`; the reads install only when it is the zone's V7 epoch.
+    pub phase5_rules: Option<Arc<domain::zone::Phase5Rules>>,
 }
 
 impl Dependencies {
@@ -116,6 +121,8 @@ impl Dependencies {
             ws_public_url: DEFAULT_WS_PUBLIC_URL.to_owned(),
             audit: Arc::new(infrastructure::memory::InMemorySessionAudit::default()),
             session_limits: SessionLimits::default(),
+            economy_reads: None,
+            phase5_rules: None,
         }
     }
 }
@@ -208,6 +215,9 @@ pub async fn build_live_grpc_services(
             Some(realtime.sessions.clone()),
             deps.item_catalogue.clone(),
         ));
+    if let Some(queries) = economy_queries(deps, &realtime.sessions.zone) {
+        services.game = services.game.with_economy(queries);
+    }
     if realtime.sessions.zone.phase3_enabled() {
         services.game = services.game.with_phase3(
             interface::grpc::Phase3UseCases::for_runtime(
@@ -218,6 +228,29 @@ pub async fn build_live_grpc_services(
         );
     }
     Ok(services)
+}
+
+/// The Phase 5 read use cases (story 4.6) when the economy read port, the item catalogue and
+/// the zone's V7 `Phase5Rules` are all present; otherwise the reads stay `UNAVAILABLE`.
+fn economy_queries(
+    deps: &Dependencies,
+    zone: &application::zone_actor::ZoneHandle,
+) -> Option<Arc<application::use_cases::EconomyQueries>> {
+    let reads = deps.economy_reads.clone()?;
+    let rules = deps.phase5_rules.clone()?;
+    let items = deps.item_catalogue.as_ref()?.catalogue().ok()?;
+    if zone.phase5_rules_hash() != Some(rules.hash_hex().as_str()) {
+        return None;
+    }
+    // Merchant entities resolve through the spawn-slot binding (P5-Q14).
+    let zone_reads = application::ZoneEconomyReads::new(zone.clone());
+    Some(Arc::new(application::use_cases::EconomyQueries::new(
+        deps.characters.clone(),
+        reads,
+        items,
+        rules,
+        Some(Arc::new(zone_reads)),
+    )))
 }
 
 /// The real-time channel: the running zones and what every session shares.
