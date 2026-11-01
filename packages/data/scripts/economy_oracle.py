@@ -1054,6 +1054,14 @@ def java_div(a: int, b: int) -> int:
     return q if (a >= 0) == (b >= 0) else -q
 
 
+def credit_sp(current: int, sp: int) -> int:
+    """PlayableStat.addSp (GJ/model/actor/stat/PlayableStat.java:165-181): a negative sp adds
+    nothing; at Integer.MAX_VALUE nothing is added; otherwise the total caps at Integer.MAX_VALUE."""
+    if sp < 0 or current == INT_MAX:
+        return current
+    return INT_MAX if sp > INT_MAX - current else current + sp
+
+
 def pow56(k: int) -> F:
     require(1 <= k <= 79, f"pow56 k={k} fails closed")
     return fl(fl(F(5) / 6) ** k)
@@ -1153,7 +1161,7 @@ def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int,
             if info["alive"]:
                 awards.setdefault(pid, [0, 0])
                 awards[pid][0] += award_xp(e, info.get("race"))
-                awards[pid][1] += s
+                awards[pid][1] = credit_sp(awards[pid][1], s)
             passes.append({"visit": pid, "branch": "solo", "exp": e, "sp": s, "awarded": info["alive"]})
             continue
         party_dmg, party_lvl, rewarded = 0, 0, []
@@ -1182,7 +1190,7 @@ def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int,
             for m, (ae, as_) in zip(rewarded, dist):
                 awards.setdefault(m, [0, 0])
                 awards[m][0] += award_xp(ae, players[m].get("race"))
-                awards[m][1] += as_
+                awards[m][1] = credit_sp(awards[m][1], as_)
             rec["distribution"] = dist
         passes.append(rec)
     return {"total": total, "passes": passes, "awards": {str(k): v for k, v in sorted(awards.items())}}
@@ -1222,11 +1230,24 @@ def int_saturation_g8() -> dict:
         unclamped.append(java_int(fl(s_b * pre)))
     wrapped = [i for i, (a, u) in enumerate(zip(dist, unclamped)) if u * 100 > INT_MAX]
     require(wrapped, "addSp * percent wraps for at least one member")
+    require(any(sp < 0 for _, sp in dist) and all(v[1] >= 0 for v in rp["awards"].values()),
+            "a negative wrapped cutoff SP adds nothing (PlayableStat.addSp :166-169)")
+    # Reachable at G = 1 (Z lane): npc 29068's SP 63,323,403 already gives addSp > 21,474,836.
+    X1, S1 = base_rewards(row["level"], row["exp_rate"], row["sp"], "1")
+    rp1 = reward_pass(R, [[1, 2, 3]], players, 85, X1, S1)
+    s1_b = java_int(fl(rp1["passes"][0]["sp"] * bonus(3, "RatePartySp")))
+    addsp1 = [java_int(fl(s1_b * fl(fl(F(players[m]["level"] ** 2) / sq) * 1))) for m in (1, 2, 3)]
+    require(any(a > 21_474_836 for a in addsp1), "G = 1: addSp above 21,474,836")
+    # V7 SP credit cap (PlayableStat.addSp :170-179).
+    cap = {"negative": credit_sp(5, -1), "below": credit_sp(INT_MAX - 5, 10), "at_max": credit_sp(INT_MAX, 1), "plain": credit_sp(5, 10)}
+    require(cap == {"negative": 5, "below": INT_MAX, "at_max": INT_MAX, "plain": 15}, "addSp cap")
     return {"npc": 29068, "G": "8", "X": X, "S": S, "solo_diff0_full_damage": list(solo),
             "solo_exp_after_penalty": solo_exp, "sp_times_partymul_at_int_max": sat_sp,
             "party": {"players": {str(k): v for k, v in players.items()}, "R": {str(k): v for k, v in R.items()},
                       "result": rp, "bonus_sp": s_b, "addsp_before_cutoff": unclamped,
-                      "cutoff_sp_int_overflow_members": wrapped}}
+                      "cutoff_sp_int_overflow_members": wrapped},
+            "party_g1": {"X": X1, "S": S1, "result": rp1, "addsp_before_cutoff": addsp1},
+            "add_sp_cap": cap}
 
 
 @family("X", "1.6")
