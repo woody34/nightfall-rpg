@@ -188,18 +188,30 @@ async fn build_dependencies(
         (Some(bundle), None) => Some(bundle.items.clone()),
         (None, _) => None,
     };
-    if let (Some(bundle), Some(items)) = (&phase4, &items) {
+    // P5-D19: the V7 item view admits the V7-executable skills, so every V7 consumer pairs
+    // it with the V7 skill view (same Phase 3 hash); V6 keeps the V6 skills.
+    let skills = match (&phase4, &phase5) {
+        (Some(_), Some(rules)) => Some(
+            rules
+                .v7_skills()
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("the V7 skill view is not bound"))?,
+        ),
+        (Some(bundle), None) => Some(bundle.skills.clone()),
+        (None, _) => None,
+    };
+    if let (Some(skills), Some(items)) = (&skills, &items) {
         deps.item_catalogue =
             Some(Arc::new(nightfall_api::application::use_cases::RegistryItemCatalogue::new(
                 items.clone(),
-                &bundle.skills,
+                skills,
             )?));
     }
     deps.phase5_rules.clone_from(&phase5);
     let mut memory = infrastructure::memory::InMemoryCharacterRepository::default()
         .with_classes(classes.registry.clone());
-    if let (Some(bundle), Some(items)) = (&phase4, &items) {
-        memory = memory.with_phase4_rules(items.clone(), bundle.skills.clone())?;
+    if let (Some(skills), Some(items)) = (&skills, &items) {
+        memory = memory.with_phase4_rules(items.clone(), skills.clone())?;
     } else if let Some(rules) = &phase3 {
         memory = memory.with_phase3_rules(rules.clone());
     }
@@ -233,8 +245,8 @@ async fn build_dependencies(
         let mut characters = infrastructure::postgres::PgCharacterRepository::new(conn.clone())
             .with_classes(classes.registry.clone())
             .with_metrics(metrics.clone());
-        if let (Some(bundle), Some(items)) = (&phase4, &items) {
-            characters = characters.with_phase4_rules(items.clone(), bundle.skills.clone())?;
+        if let (Some(skills), Some(items)) = (&skills, &items) {
+            characters = characters.with_phase4_rules(items.clone(), skills.clone())?;
         } else if let Some(rules) = &phase3 {
             characters = characters.with_phase3_rules(rules.clone());
         }
