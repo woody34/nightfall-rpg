@@ -31,6 +31,16 @@ impl InventoryLimits {
             ..self
         }
     }
+    /// Design §8.2 rule P7b: a craft product is granted with no capacity or weight check
+    /// (pinned `rewardPlayer`).
+    #[must_use]
+    pub const fn unchecked() -> Self {
+        Self {
+            ordinary: u32::MAX,
+            quest: u32::MAX,
+            max_weight: i64::MAX,
+        }
+    }
     /// Slot ceilings come from the immutable source policy; the effective load getter
     /// supplies the checked weight ceiling after attributes and modifiers have folded.
     pub fn from_rules(

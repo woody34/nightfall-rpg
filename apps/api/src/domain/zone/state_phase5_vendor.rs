@@ -293,6 +293,7 @@ impl ZoneState {
                 receipt: Some(receipt),
                 cause: None,
                 transfer: None,
+                recipients: Vec::new(),
             },
             events,
         )?;
@@ -437,6 +438,8 @@ impl ZoneState {
         else {
             return Err(RejectReason::InvalidLoad);
         };
+        // z-review-7 P3-1: the pinned gate runs first (`runImpl`), before the shape checks.
+        self.flood_gate_v7(tick, actor, FloodKind::Transaction)?;
         if items.is_empty() || items.len() > MAX_ITEMS || items.iter().any(|i| i.count == 0) {
             return Err(RejectReason::InvalidQuantity);
         }
@@ -444,7 +447,6 @@ impl ZoneState {
         if !items.iter().all(|i| seen.insert(i.template)) {
             return Err(RejectReason::NotPermitted);
         }
-        self.flood_gate_v7(tick, actor, FloodKind::Transaction)?;
         let npc = self.merchant_v7(actor, *merchant)?;
         let phase5 = self.phase5.as_ref().ok_or(RejectReason::InvalidLoad)?;
         let rules = std::sync::Arc::clone(&phase5.rules);
@@ -661,6 +663,8 @@ impl ZoneState {
         else {
             return Err(RejectReason::InvalidLoad);
         };
+        // z-review-7 P3-1: the pinned gate runs first (`runImpl`), before the shape checks.
+        self.flood_gate_v7(tick, actor, FloodKind::Transaction)?;
         if items.is_empty() || items.len() > MAX_ITEMS || items.iter().any(|i| i.count == 0) {
             return Err(RejectReason::InvalidQuantity);
         }
@@ -668,7 +672,6 @@ impl ZoneState {
         if !items.iter().all(|i| seen.insert(i.instance)) {
             return Err(RejectReason::NotPermitted);
         }
-        self.flood_gate_v7(tick, actor, FloodKind::Transaction)?;
         let npc = self.merchant_v7(actor, *merchant)?;
         let rules =
             std::sync::Arc::clone(&self.phase5.as_ref().ok_or(RejectReason::InvalidLoad)?.rules);
@@ -866,6 +869,7 @@ impl ZoneState {
                         peer_instance: tab_id,
                         peer_ordinal: None,
                     }),
+                    recipients: Vec::new(),
                 },
                 events,
             )?;
@@ -956,6 +960,8 @@ impl ZoneState {
         else {
             return Err(RejectReason::InvalidLoad);
         };
+        // z-review-7 P3-1: the pinned gate runs first (`runImpl`), before the shape checks.
+        self.flood_gate_v7(tick, actor, FloodKind::Transaction)?;
         if refund_indices.is_empty() || refund_indices.len() > REFUND_TAB_LIMIT {
             return Err(RejectReason::InvalidQuantity);
         }
@@ -963,7 +969,6 @@ impl ZoneState {
         if !refund_indices.iter().all(|i| seen.insert(*i)) {
             return Err(RejectReason::NotPermitted);
         }
-        self.flood_gate_v7(tick, actor, FloodKind::Transaction)?;
         let npc = self.merchant_v7(actor, *merchant)?;
         let rules =
             std::sync::Arc::clone(&self.phase5.as_ref().ok_or(RejectReason::InvalidLoad)?.rules);
@@ -1098,6 +1103,7 @@ impl ZoneState {
                         peer_instance: entry.id,
                         peer_ordinal: None,
                     }),
+                    recipients: Vec::new(),
                 },
                 events,
             )?;
@@ -1165,7 +1171,7 @@ impl ZoneState {
             .map(|p| std::mem::take(&mut p.refund))
             .unwrap_or_default();
         for entry in tab {
-            let _ = self.push_refund_row(
+            if let Err(reason) = self.push_refund_row(
                 actor,
                 LedgerOp::Destroy,
                 Some(entry),
@@ -1173,7 +1179,12 @@ impl ZoneState {
                 None,
                 None,
                 vec![format!("clear_refund:departure:{}", tick.0)],
-            );
+            ) {
+                // z-review-7 P2-1: a row that cannot be written fails the tick (latched).
+                if let Some(phase5) = &mut self.phase5 {
+                    phase5.fault = Some(format!("refund departure row: {reason:?}"));
+                }
+            }
         }
     }
 }
@@ -1398,6 +1409,8 @@ mod tests {
             buy(&mut zone, 1, merchant, &[(CHEAP, 1), (CHEAP, 1)]),
             vec![RejectReason::NotPermitted]
         );
+        // z-review-7 P3-1: the gate ran before the shape refusal and is armed.
+        wait(&mut zone, 10);
         // Passes the gate, then lacks adena: the gate is still set.
         assert_eq!(
             buy(&mut zone, 2, merchant, &[(CHEAP, 1)]),
@@ -1569,6 +1582,78 @@ mod tests {
             .is_empty());
         let staged = &zone.phase5.as_ref().unwrap().ledger;
         assert_eq!(staged.iter().filter(|r| r.op == LedgerOp::Destroy).count(), 11);
+    }
+
+    /// z-review-7 P2-1 (B6): a real departure (`ZoneCommand::Despawn`, the logout path)
+    /// destroys the refund tab with one refund `destroy` row per entry in that tick's
+    /// `EconomyCheckpoint`.
+    #[test]
+    fn departure_destroys_the_refund_tab_with_ledger_rows() {
+        let (mut zone, merchant) = zone(1);
+        let rules = std::sync::Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let templates: Vec<u32> = rules
+            .parts()
+            .items
+            .values()
+            .filter(|d| {
+                !d.stackable
+                    && d.price > 1
+                    && d.flags.get("is_sellable") == Some(&true)
+                    && rules
+                        .parts()
+                        .capabilities
+                        .get(&d.template_id)
+                        .is_some_and(|c| c.storable)
+                    && d.kind == "EtcItem"
+            })
+            .map(|d| d.template_id)
+            .take(2)
+            .collect();
+        let ids: Vec<_> = templates.iter().map(|t| give(&mut zone, *t, 1)).collect();
+        let items: Vec<ItemCount> = ids
+            .iter()
+            .map(|instance| ItemCount {
+                instance: *instance,
+                count: 1,
+            })
+            .collect();
+        let tick = run(
+            &mut zone,
+            1,
+            serde_json::json!({"kind": "vendor_sell", "merchant": merchant, "list_id": LIST, "items": items}),
+        );
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert_eq!(
+            zone.phase5.as_ref().unwrap().canonical.players[&id(P1)]
+                .refund
+                .len(),
+            2
+        );
+        let tick = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn { entity: id(P1) })]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let destroyed: Vec<_> = tick
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::EconomyCheckpoint(c) => Some(c.ledger.clone()),
+                _ => None,
+            })
+            .flatten()
+            .filter(|r| r.owner_kind == OwnerKind::Refund && r.op == LedgerOp::Destroy)
+            .collect();
+        assert_eq!(destroyed.len(), 2);
+        assert!(destroyed
+            .iter()
+            .all(|r| r.causes == vec![format!("clear_refund:departure:{}", tick.tick.0)]));
+        assert!(!zone
+            .phase5
+            .as_ref()
+            .unwrap()
+            .canonical
+            .players
+            .contains_key(&id(P1)));
     }
 
     /// Families V-S (sell/refund prices), V-R (restock minutes) and V-P (unit prices that

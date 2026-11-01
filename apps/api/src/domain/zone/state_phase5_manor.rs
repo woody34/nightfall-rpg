@@ -504,6 +504,7 @@ impl ZoneState {
                     receipt: None,
                     cause: Some(cause.to_owned()),
                     transfer: None,
+                    recipients: Vec::new(),
                 },
                 events,
             )?;

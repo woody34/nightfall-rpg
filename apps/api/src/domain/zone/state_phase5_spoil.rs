@@ -406,6 +406,7 @@ impl ZoneState {
                 count,
                 ItemOperation::Sweep,
                 resolution,
+                &[],
                 events,
             );
         };
@@ -457,6 +458,14 @@ impl ZoneState {
                     .ok_or(RejectReason::InvalidLoad)?;
                 *slot = slot.saturating_add(1);
             }
+            // P5-D33: the recipient set (shares > 0), canonical ids ascending.
+            let mut set: Vec<uuid::Uuid> = recipients
+                .iter()
+                .zip(&shares)
+                .filter(|(_, share)| **share > 0)
+                .map(|(r, _)| r.as_uuid())
+                .collect();
+            set.sort_unstable();
             for (recipient, share) in recipients.into_iter().zip(shares) {
                 if share > 0 {
                     self.sweep_payout_v7(
@@ -466,6 +475,7 @@ impl ZoneState {
                         share,
                         ItemOperation::PartySplit,
                         resolution,
+                        &set,
                         events,
                     )?;
                 }
@@ -531,6 +541,7 @@ impl ZoneState {
             count,
             ItemOperation::Sweep,
             resolution,
+            &[looter.as_uuid()],
             events,
         )?;
         let audience: Vec<EntityId> = party
@@ -566,6 +577,7 @@ impl ZoneState {
         count: u64,
         operation: ItemOperation,
         resolution: &str,
+        recipients: &[uuid::Uuid],
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let origin = ItemCreationOrigin {
@@ -671,6 +683,7 @@ impl ZoneState {
                     receipt: None,
                     cause: Some(resolution.to_owned()),
                     transfer: None,
+                    recipients: recipients.to_vec(),
                 },
                 events,
             )?;

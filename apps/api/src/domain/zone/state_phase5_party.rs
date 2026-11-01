@@ -75,6 +75,15 @@ impl ZoneState {
         if matches!(command, Phase5Command::MultisellChoose { .. }) {
             return self.multisell_choose(tick, actor, command, seq, events);
         }
+        if matches!(command, Phase5Command::RegisterRecipe { .. }) {
+            return self.register_recipe(tick, actor, command, seq, events);
+        }
+        if matches!(command, Phase5Command::DeleteRecipe { .. }) {
+            return self.delete_recipe(tick, actor, command, seq, events);
+        }
+        if matches!(command, Phase5Command::CraftItem { .. }) {
+            return self.craft_item(tick, actor, command, seq, events);
+        }
         if let Phase5Command::PickUpItem { ground, .. } = command {
             return self.pick_up_item(
                 tick,
@@ -740,6 +749,8 @@ impl ZoneState {
             // An invariant-violating party cannot block a departure; the record goes anyway.
             let _ = self.remove_party_member(tick, id, entity, Removal::Disconnected, events);
         }
+        // z-review-7 P2-1 (B6): the refund tab is destroyed with ledger rows at departure.
+        self.clear_refund_v7(tick, entity);
         if let Some(phase5) = &mut self.phase5 {
             phase5
                 .canonical
