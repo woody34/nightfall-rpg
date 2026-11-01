@@ -148,9 +148,12 @@ impl ZoneState {
             .as_ref()
             .and_then(|p| p.canonical.npcs.get(&npc))
             .ok_or(RejectReason::SweepNotAllowed)?;
-        let (Some(spoiler), Some(holders)) = (sidecar.spoiler, sidecar.sweep.as_ref()) else {
+        // z-review-5 P2-1: pinned `canSweep` needs `isSpoiled()` only; a spoiled corpse
+        // whose roll produced nothing is an empty holder list (the cast still runs).
+        let Some(spoiler) = sidecar.spoiler else {
             return Err(RejectReason::SweepNotAllowed);
         };
+        let holders: &[(u32, u64)] = sidecar.sweep.as_deref().unwrap_or_default();
         let corpse = self
             .entities
             .get(&npc)
@@ -162,7 +165,9 @@ impl ZoneState {
         {
             return Err(RejectReason::SweepNotAllowed);
         }
-        if !self.sweep_capacity_v7(sweeper, holders) {
+        // z-review-5 P3-3: allocator room is checked here too, so a sweep never starts only
+        // to lose its holders at the impact for a Nightfall-only reason.
+        if !self.sweep_capacity_v7(sweeper, holders) || !self.sweep_ids_available_v7(holders) {
             return Err(RejectReason::InventoryFull);
         }
         Ok(())
@@ -325,9 +330,10 @@ impl ZoneState {
         else {
             return Ok(SkillOutcome::Miss);
         };
-        let (Some(spoiler), Some(holders)) = (sidecar.spoiler, sidecar.sweep.clone()) else {
+        let Some(spoiler) = sidecar.spoiler else {
             return Ok(SkillOutcome::Miss);
         };
+        let holders = sidecar.sweep.clone().unwrap_or_default();
         if !self.spoil_owner_v7(caster.entity, spoiler)
             || !self.sweep_capacity_v7(caster.entity, &holders)
             || !self.sweep_ids_available_v7(&holders)
@@ -914,8 +920,19 @@ mod tests {
             .npcs
             .get_mut(&npc)
             .unwrap()
-            .sweep = None;
+            .spoiler = None;
         assert_eq!(zone.can_sweep_v7(tick, id(P1), npc), Err(RejectReason::SweepNotAllowed));
+        // z-review-5 P2-1: spoiled with an empty roll is still sweepable.
+        corpse(&mut zone, npc, 100, id(P1), vec![(57, 10)]);
+        zone.phase5
+            .as_mut()
+            .unwrap()
+            .canonical
+            .npcs
+            .get_mut(&npc)
+            .unwrap()
+            .sweep = None;
+        zone.can_sweep_v7(tick, id(P1), npc).unwrap();
         // Too heavy for the load ceiling.
         corpse(&mut zone, npc, 100, id(P1), vec![(1, 100_000)]);
         assert_eq!(zone.can_sweep_v7(tick, id(P1), npc), Err(RejectReason::InventoryFull));
@@ -1028,6 +1045,41 @@ mod tests {
             e,
             ZoneEvent::Economy(ev) if matches!(ev.body, EconomyBody::CorpseStateChanged { swept: true, .. })
         )));
+        // z-review-5 P2-1: a spoiled corpse with an empty roll: the sweep grants nothing and
+        // ConsumeBody still ends the corpse.
+        corpse(&mut zone, npc, 100, id(P1), Vec::new());
+        zone.phase5
+            .as_mut()
+            .unwrap()
+            .canonical
+            .npcs
+            .get_mut(&npc)
+            .unwrap()
+            .sweep = None;
+        let before = zone.phase4.as_ref().unwrap().canonical.players[&id(P1)]
+            .inventory
+            .clone();
+        let mut empty = Vec::new();
+        let swept = zone
+            .v7_instant_v7(tick, caster, target, &sweeper, 1, CastId(11), "Sweeper", &mut empty)
+            .unwrap();
+        assert_eq!(swept.outcome, SkillOutcome::Hit);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.players[&id(P1)].inventory, before);
+        assert!(!empty
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(_))));
+        zone.v7_instant_v7(
+            tick,
+            caster,
+            target,
+            &sweeper,
+            1,
+            CastId(11),
+            "ConsumeBody",
+            &mut empty,
+        )
+        .unwrap();
+        assert_eq!(zone.entities[&npc].ai.as_ref().unwrap().corpse_until, Some(tick));
         // A failed re-check (not the owner) takes nothing; ConsumeBody still clears holders.
         corpse(&mut zone, npc, 100, id(P1), vec![(57, 5)]);
         let other = binding(&zone, id(P2));
