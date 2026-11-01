@@ -75,6 +75,8 @@ def main() -> int:
         ("gen_economy.py", sources),
         # D10: the closure item rows read catalogue.toml (gen_economy) and the V6 tables (gen_items).
         ("gen_items_closure.py", sources),
+        # P5-D19: V7 skill promotions over the committed V6 skill bundle (gen_skills/gen_items).
+        ("gen_skill_promotions.py", sources),
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
         ("starter_weapon_oracle.py", []),
