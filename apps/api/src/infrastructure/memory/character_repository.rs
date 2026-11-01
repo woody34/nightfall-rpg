@@ -75,21 +75,23 @@ impl State {
         for item in &mut checkpoint.instances {
             // P5-Q13, like the Postgres load: the instance's first `before = null` row of any
             // owner. A V6 row (of any character) first, else the economy birth.
+            // P5-Q13/P5-D22: the first `before = null` row of any owner as staged (the births
+            // map), else the V6 rows of any character.
             let birth = self
-                .item_ledger
-                .iter()
-                .find(|row| row.instance_id == item.id && row.delta.before.is_none())
-                .map(|row| {
-                    (
-                        row.zone_id,
-                        row.epoch,
-                        row.delta.after.as_ref().map(|born| born.created_tick.0),
-                    )
-                })
+                .economy_births
+                .get(&item.id)
+                .map(|(zone, epoch, tick)| (*zone, *epoch, Some(*tick)))
                 .or_else(|| {
-                    self.economy_births
-                        .get(&item.id)
-                        .map(|(zone, epoch, tick)| (*zone, *epoch, Some(*tick)))
+                    self.item_ledger
+                        .iter()
+                        .find(|row| row.instance_id == item.id && row.delta.before.is_none())
+                        .map(|row| {
+                            (
+                                row.zone_id,
+                                row.epoch,
+                                row.delta.after.as_ref().map(|born| born.created_tick.0),
+                            )
+                        })
                 })
                 .ok_or_else(|| named("item_creation_ledger_missing"))?;
             if birth.2 != Some(item.created_tick.0) {
@@ -298,7 +300,7 @@ impl InMemoryCharacterRepository {
         events: &[DomainEvent],
         fingerprint: String,
         items: Option<&crate::application::ports::ItemCheckpointWork>,
-        economy_rows: &[crate::application::ports::EconomyCharacterRow],
+        links: &crate::application::ports::IdentityLinks,
     ) -> Result<CheckpointOutcome, CheckpointError> {
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
@@ -352,7 +354,7 @@ impl InMemoryCharacterRepository {
             work.validate_before_with_economy(
                 s.item_inventories.get(&checkpoint.character_id),
                 self.phase4_rules.as_deref(),
-                economy_rows,
+                links,
             )?;
         } else {
             crate::application::ports::validate_item_retention(
@@ -516,8 +518,14 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
             };
         }
         receipt.validate(checkpoint, owner)?;
-        let outcome =
-            self.checkpoint_locked(&mut state, checkpoint, events, fingerprint, None, &[])?;
+        let outcome = self.checkpoint_locked(
+            &mut state,
+            checkpoint,
+            events,
+            fingerprint,
+            None,
+            &crate::application::ports::IdentityLinks::default(),
+        )?;
         if matches!(outcome, CheckpointOutcome::Applied(_) | CheckpointOutcome::Replayed(_)) {
             state.learn_receipts.insert(
                 (receipt.account_id, receipt.key),
@@ -570,7 +578,7 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
 struct EconomyPart<'a> {
     store: &'a super::InMemoryEconomyStore,
     write: &'a crate::application::economy::EconomyCheckpointWrite,
-    rows: &'a [crate::application::ports::EconomyCharacterRow],
+    links: &'a crate::application::ports::IdentityLinks,
 }
 
 impl State {
@@ -599,32 +607,6 @@ impl State {
             }
         }
         Ok(None)
-    }
-
-    /// D67 for economy rows (B13): a `before = null` character row of an instance with ledger
-    /// history (V6 or economy) needs a linked identity `transfer_in`.
-    fn check_economy_identity(
-        &self,
-        part: EconomyPart<'_>,
-        before: Option<&crate::domain::zone::Phase4Checkpoint>,
-    ) -> Result<(), CheckpointError> {
-        let history = part.store.ledger();
-        for row in part.rows {
-            if row.before.is_none()
-                && !row.identity_link
-                && !before.is_some_and(|cp| cp.instances.iter().any(|item| item.id == row.instance))
-                && (self
-                    .item_ledger
-                    .iter()
-                    .any(|known| known.instance_id == row.instance)
-                    || history
-                        .iter()
-                        .any(|known| known.instance_id == row.instance.get()))
-            {
-                return Err(CheckpointError::Constraint("item_instance_identity_reused".into()));
-            }
-        }
-        Ok(())
     }
 
     /// Commit-time bookkeeping of the combined write: receipts and cross-owner births.
@@ -739,9 +721,19 @@ impl InMemoryCharacterRepository {
                 .item_inventories
                 .insert(cp.character_id, before.clone());
         }
-        let rows = economy.map_or(&[][..], |part| part.rows);
+        let none = crate::application::ports::IdentityLinks::default();
+        let links = economy.map_or(&none, |part| part.links);
+        // B13: linked identity transfer_in rows bring a known id (exempt from D67).
+        let linked: std::collections::BTreeSet<crate::domain::zone::ItemInstanceId> = work
+            .projection
+            .ledger
+            .iter()
+            .filter(|delta| links.linked(delta))
+            .map(|delta| delta.instance)
+            .collect();
+        let history = economy.map(|part| part.store.ledger()).unwrap_or_default();
         let outcome =
-            self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work), rows)?;
+            self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work), links)?;
         if !matches!(outcome, CheckpointOutcome::Applied(_)) {
             return Ok(outcome);
         }
@@ -764,13 +756,17 @@ impl InMemoryCharacterRepository {
         }
         for row in work.ledger_entries()? {
             if row.delta.before.is_none()
+                && !linked.contains(&row.instance_id)
                 && !before
                     .as_ref()
                     .is_some_and(|cp| cp.instances.iter().any(|item| item.id == row.instance_id))
-                && staged
+                && (staged
                     .item_ledger
                     .iter()
                     .any(|known| known.instance_id == row.instance_id)
+                    || history
+                        .iter()
+                        .any(|known| known.instance_id == row.instance_id.get()))
             {
                 return Err(CheckpointError::Constraint("item_instance_identity_reused".into()));
             }
@@ -795,10 +791,16 @@ impl InMemoryCharacterRepository {
             }) {
                 return Err(CheckpointError::Constraint("item_ledger_logical_key".into()));
             }
+            if row.delta.before.is_none() {
+                if let Some(born) = &row.delta.after {
+                    staged.economy_births.entry(row.instance_id).or_insert((
+                        row.zone_id,
+                        row.epoch,
+                        born.created_tick.0,
+                    ));
+                }
+            }
             staged.item_ledger.push(row);
-        }
-        if let Some(part) = economy {
-            staged.check_economy_identity(part, before.as_ref())?;
         }
         // D76 row positions are enforced by `validate_before` before any row is staged; the
         // Postgres item_ledger_row_ordinal trigger is storage defence in depth with no memory copy.
@@ -844,8 +846,12 @@ impl InMemoryCharacterRepository {
         if let Some(part) = economy {
             // Every character-side check passed; the store write is atomic on its own and
             // nothing is committed here unless it succeeds.
+            let facts = crate::application::economy_facts::FactRow::of_projection(
+                cp.character_id.as_uuid(),
+                work,
+            );
             part.store
-                .apply_write(part.write)
+                .apply_write(part.write, &facts)
                 .map_err(crate::application::economy::checkpoint_error)?;
             staged.record_economy(owner, part.write);
         }
@@ -868,13 +874,7 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
         economy
             .validate()
             .map_err(crate::application::economy::checkpoint_error)?;
-        let rows =
-            crate::application::ports::EconomyCharacterRow::of_write(cp.character_id, economy)?;
-        if items.is_none() && !rows.is_empty() {
-            return Err(CheckpointError::Constraint(
-                "economy_character_rows_need_projection".into(),
-            ));
-        }
+        let links = crate::application::ports::IdentityLinks::of_write(economy)?;
         let store = self
             .economy
             .as_deref()
@@ -882,7 +882,7 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
         let part = EconomyPart {
             store,
             write: economy,
-            rows: &rows,
+            links: &links,
         };
         if let Some(work) = items {
             return self.settle_items(cp, events, work, None, Some(part));
@@ -898,12 +898,12 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
         }
         let mut staged = current.clone();
         let outcome =
-            self.checkpoint_locked(&mut staged, cp, events, cp.fingerprint(events), None, &[])?;
+            self.checkpoint_locked(&mut staged, cp, events, cp.fingerprint(events), None, &links)?;
         if !matches!(outcome, CheckpointOutcome::Applied(_)) {
             return Ok(outcome);
         }
         store
-            .apply_write(economy)
+            .apply_write(economy, &[])
             .map_err(crate::application::economy::checkpoint_error)?;
         staged.record_economy(owner, economy);
         *current = staged;
@@ -1109,7 +1109,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
             events,
             checkpoint.fingerprint(events),
             None,
-            &[],
+            &crate::application::ports::IdentityLinks::default(),
         )
     }
 }

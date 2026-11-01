@@ -266,6 +266,42 @@ fn row(
     }
 }
 
+const PICKUP_RECEIPT: &str = "receipt:pick_up_item:00000000-0000-0000-0000-000000007777";
+
+/// A V7 character row of the item projection (P5-D22): an ordinary `ItemDeltaPlan` with the
+/// `economy` audit cause carrying the receipt and the B13 transfer link.
+fn plan(
+    operation: ItemOperation,
+    instance: u64,
+    before: Option<&ItemInstance>,
+    after: Option<&ItemInstance>,
+    ordinal: u32,
+    receipt: &str,
+    link: Option<&str>,
+) -> ItemDeltaPlan {
+    let count = |item: Option<&ItemInstance>| i64::try_from(item.map_or(0, |i| i.count)).unwrap();
+    let mut fields = BTreeMap::new();
+    fields.insert("receipt".to_owned(), ItemEvidenceValue::Text(receipt.into()));
+    if let Some(link) = link {
+        fields.insert("link".to_owned(), ItemEvidenceValue::Text(link.into()));
+        fields.insert("mode".to_owned(), ItemEvidenceValue::Text("identity".into()));
+    }
+    ItemDeltaPlan {
+        operation,
+        operation_ordinal: ordinal,
+        instance: ItemInstanceId::new(instance).unwrap(),
+        before: before.cloned(),
+        after: after.cloned(),
+        count_delta: count(after) - count(before),
+        receipt: None,
+        receipt_refs: Vec::new(),
+        causes: vec![ItemAuditEvidence {
+            family: "economy".into(),
+            fields,
+        }],
+    }
+}
+
 /// Tick 80 (revision 2): the character picks the ground stack up.
 fn pickup(
     cp: &CharacterCheckpoint,
@@ -285,12 +321,24 @@ fn pickup(
     let mut work = work.clone();
     work.projection.tick = Tick(80);
     work.projection.checkpoint = checkpoint;
-    work.projection.ledger = Vec::new();
+    work.projection.ledger = if character_rows {
+        vec![plan(
+            ItemOperation::TransferIn,
+            PICKED,
+            None,
+            Some(&picked(2)),
+            0,
+            PICKUP_RECEIPT,
+            Some(PICKUP_LINK),
+        )]
+    } else {
+        Vec::new()
+    };
     work.projection.receipts = Vec::new();
     work.projection.materializations = Vec::new();
     let mut ground = picked(0);
     ground.location = ItemLocation::Ground;
-    let mut ledger = vec![row(
+    let ledger = vec![row(
         "ground",
         GROUND,
         "transfer_out",
@@ -299,17 +347,6 @@ fn pickup(
         0,
         serde_json::json!({"before": ground, "after": null, "transfer": {"link": PICKUP_LINK, "mode": "identity"}, "receipt": "receipt:pick_up_item:00000000-0000-0000-0000-000000007777"}),
     )];
-    if character_rows {
-        ledger.push(row(
-            "character",
-            character,
-            "transfer_in",
-            1,
-            80,
-            0,
-            serde_json::json!({"before": null, "after": picked(2), "transfer": {"link": PICKUP_LINK, "mode": "identity"}, "receipt": "receipt:pick_up_item:00000000-0000-0000-0000-000000007777"}),
-        ));
-    }
     let write = EconomyCheckpointWrite {
         zone_id: 1,
         epoch: 1,
@@ -342,47 +379,45 @@ async fn economy_character_rows_cover_changed_scalars_and_share_t1_positions() {
     let bundle = embedded_phase4_bundle().unwrap();
     let (_, cp, work, _) = starter(&repo, &bundle, "EconomyCover").await;
     let before = work.projection.checkpoint.clone();
-    let (next, work2, write) = pickup(&cp, &work, true, "fp");
-    let rows = EconomyCharacterRow::of_write(next.character_id, &write).unwrap();
-    assert_eq!(rows.len(), 1, "only the character side");
-    work2
-        .validate_before_with_economy(Some(&before), Some(&bundle.items), &rows)
-        .unwrap();
+    let (_, work2, write) = pickup(&cp, &work, true, "fp");
+    let links = IdentityLinks::of_write(&write).unwrap();
+    let validate = |work: &ItemCheckpointWork, links: &IdentityLinks| {
+        work.validate_before_with_economy(Some(&before), Some(&bundle.items), links)
+    };
+    validate(&work2, &links).unwrap();
     // Without the character row the new scalar is unledgered (the V6 rule is unchanged).
+    let (_, bare, _) = pickup(&cp, &work, false, "fp");
+    assert_eq!(constraint(validate(&bare, &links)), "item_checkpoint_unledgered_scalar");
+    // The character row's after must be the settled scalar and revision.
+    let mut stale = work2.clone();
+    stale.projection.ledger[0].after = Some(picked(1));
+    assert_eq!(constraint(validate(&stale, &links)), "item_ledger_revision_step");
+    // T1: the row must hold its canonical position.
+    let mut gap = work2.clone();
+    gap.projection.ledger[0].operation_ordinal = 1;
+    assert_eq!(constraint(validate(&gap, &links)), "item_ledger_row_ordinal");
+    // B13: an identity transfer_in without a matching transfer_out link of the same write is
+    // refused.
     assert_eq!(
-        constraint(work2.validate_before_with_economy(Some(&before), Some(&bundle.items), &[])),
-        "item_checkpoint_unledgered_scalar"
+        constraint(validate(&work2, &IdentityLinks::default())),
+        "economy_transfer_unlinked"
     );
-    // The economy row's after must be the settled scalar and revision.
-    let mut stale = rows.clone();
-    stale[0].after = Some(picked(1));
+    let mut other = write.clone();
+    other.ledger[0].delta["transfer"]["link"] =
+        serde_json::json!("6f1c3c1e-7c55-5d7e-9e1a-00000000ffff");
     assert_eq!(
-        constraint(work2.validate_before_with_economy(Some(&before), Some(&bundle.items), &stale)),
-        "item_ledger_revision_step"
+        constraint(validate(&work2, &IdentityLinks::of_write(&other).unwrap())),
+        "economy_transfer_unlinked"
     );
-    // T1: an economy row must hold its canonical position.
-    let mut gap = rows.clone();
-    gap[0].operation_ordinal = 1;
-    assert_eq!(
-        constraint(work2.validate_before_with_economy(Some(&before), Some(&bundle.items), &gap)),
-        "item_ledger_row_ordinal"
-    );
-    // A second creation of the same instance is an identity reuse.
-    let mut twice = rows.clone();
-    twice.push(EconomyCharacterRow {
-        operation_ordinal: 1,
-        ..rows[0].clone()
+    // P5-D22: a character row inside the economy write is refused.
+    let mut misplaced = write.clone();
+    misplaced.ledger.push(OwnerLedgerRow {
+        owner_kind: "character".into(),
+        ..write.ledger[0].clone()
     });
-    assert!(matches!(
-        work2.validate_before_with_economy(Some(&before), Some(&bundle.items), &twice),
-        Err(CheckpointError::Constraint(_))
-    ));
-    // A character row of another character is refused.
-    let mut foreign = write.clone();
-    foreign.ledger[1].owner_id = Uuid::from_u128(0xF00);
     assert_eq!(
-        constraint(EconomyCharacterRow::of_write(next.character_id, &foreign).map(drop)),
-        "economy_character_row_foreign"
+        constraint(IdentityLinks::of_write(&misplaced).map(drop)),
+        "economy_character_row_in_economy_write"
     );
     // A receipt outside the economy scopes is refused before any write.
     let mut bad = write;
@@ -487,10 +522,12 @@ async fn postgres_pickup_settles_scalars_economy_rows_and_receipt_in_one_transac
             .unwrap();
     assert_eq!(
         owners,
+        // The settlement writes the character row before the economy rows of the same
+        // transaction; the drop's loot row (an earlier tick) stays first.
         vec![
             ("ground".into(), "loot".into()),
-            ("ground".into(), "transfer_out".into()),
-            ("character".into(), "transfer_in".into())
+            ("character".into(), "transfer_in".into()),
+            ("ground".into(), "transfer_out".into())
         ]
     );
     // The retained load takes the creation origin from the ground drop (epoch 0), not from the
@@ -642,7 +679,16 @@ async fn deposit_and_withdraw<R>(
     // container Insert writes the same id as a warehouse row.
     leases.acquire(&grant(vec![key], 1)).await.unwrap();
     let stored = located(&item, ItemLocation::Warehouse, 0);
-    let (cp2, work2) = tick(&cp, &work, 1, 2, 80, rest.clone());
+    let (cp2, mut work2) = tick(&cp, &work, 1, 2, 80, rest.clone());
+    work2.projection.ledger = vec![plan(
+        ItemOperation::TransferOut,
+        id,
+        Some(&item),
+        None,
+        0,
+        "receipt:warehouse_deposit:k1",
+        Some(link_in),
+    )];
     let deposit = EconomyCheckpointWrite {
         zone_id: 1,
         epoch: 1,
@@ -665,10 +711,16 @@ async fn deposit_and_withdraw<R>(
             .map(|(k, v)| (k.to_owned(), v))
             .collect(),
         }],
-        ledger: vec![
-            moved("character", owner, "transfer_out", 80, id, Some(&item), None, Some(link_in)),
-            moved("warehouse", owner, "transfer_in", 80, id, None, Some(&stored), Some(link_in)),
-        ],
+        ledger: vec![moved(
+            "warehouse",
+            owner,
+            "transfer_in",
+            80,
+            id,
+            None,
+            Some(&stored),
+            Some(link_in),
+        )],
         lease_releases: vec![key],
         ..Default::default()
     };
@@ -699,8 +751,21 @@ async fn deposit_and_withdraw<R>(
     let back = located(&item, ItemLocation::Inventory, 3);
     let mut instances = rest.clone();
     instances.push(back.clone());
-    let (cp3, work3) = tick(&cp, &work, 2, 3, 81, instances);
-    let withdraw = |link: Option<&str>| EconomyCheckpointWrite {
+    let (cp3, base3) = tick(&cp, &work, 2, 3, 81, instances);
+    let work3 = |link: Option<&str>| {
+        let mut w = base3.clone();
+        w.projection.ledger = vec![plan(
+            ItemOperation::TransferIn,
+            id,
+            None,
+            Some(&back),
+            0,
+            "receipt:warehouse_withdraw:k2",
+            link,
+        )];
+        w
+    };
+    let withdraw = || EconomyCheckpointWrite {
         zone_id: 1,
         epoch: 1,
         tick: 81,
@@ -712,17 +777,23 @@ async fn deposit_and_withdraw<R>(
             expected_revision: Some(warehouse[0].revision),
             columns: serde_json::Map::new(),
         }],
-        ledger: vec![
-            moved("warehouse", owner, "transfer_out", 81, id, Some(&stored), None, Some(link_out)),
-            moved("character", owner, "transfer_in", 81, id, None, Some(&back), link),
-        ],
+        ledger: vec![moved(
+            "warehouse",
+            owner,
+            "transfer_out",
+            81,
+            id,
+            Some(&stored),
+            None,
+            Some(link_out),
+        )],
         lease_releases: vec![key],
         ..Default::default()
     };
     // Without the B13 link the instance's history makes the before = None row a D67 reuse.
     leases.acquire(&grant(vec![key], 2)).await.unwrap();
     let refused = repo
-        .checkpoint_with_economy(&cp3, &[], Some(&work3), &withdraw(None))
+        .checkpoint_with_economy(&cp3, &[], Some(&work3(None)), &withdraw())
         .await
         .unwrap_err();
     assert!(
@@ -739,7 +810,7 @@ async fn deposit_and_withdraw<R>(
         "nothing written"
     );
     assert_eq!(
-        repo.checkpoint_with_economy(&cp3, &[], Some(&work3), &withdraw(Some(link_out)))
+        repo.checkpoint_with_economy(&cp3, &[], Some(&work3(Some(link_out))), &withdraw())
             .await
             .unwrap(),
         CheckpointOutcome::Applied(3)

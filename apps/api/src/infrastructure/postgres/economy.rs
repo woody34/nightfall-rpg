@@ -398,7 +398,7 @@ impl EconomyCheckpointRepository for PgEconomyRepository {
             ));
         }
         let tx = self.db.begin().await.map_err(classify)?;
-        let result = checkpoint_in(&tx, write, DeltaPhase::All).await;
+        let result = checkpoint_in(&tx, write, DeltaPhase::All, &[]).await;
         match result {
             Ok(()) => tx.commit().await.map_err(classify),
             Err(error) => {
@@ -434,10 +434,34 @@ pub(super) async fn container_removals(
     Ok(())
 }
 
+/// Outbox facts as `nightfall.item.<subject>` rows, each payload carrying its `fact_id`.
+pub(super) async fn insert_facts<'a>(
+    tx: &DatabaseTransaction,
+    facts: impl Iterator<Item = &'a crate::application::economy::OutboxFact>,
+) -> Result<(), EconomyError> {
+    for fact in facts {
+        let mut payload = fact.payload.clone();
+        if let serde_json::Value::Object(map) = &mut payload {
+            map.insert("fact_id".into(), serde_json::Value::String(fact.fact_id.to_string()));
+        }
+        execute(
+            tx,
+            "INSERT INTO outbox(subject,payload) VALUES($1,$2)",
+            vec![
+                format!("nightfall.item.{}", fact.subject).into(),
+                payload.into(),
+            ],
+        )
+        .await?;
+    }
+    Ok(())
+}
+
 pub(super) async fn checkpoint_in(
     tx: &DatabaseTransaction,
     write: &EconomyCheckpointWrite,
     phase: DeltaPhase,
+    character_rows: &[crate::application::economy_facts::FactRow],
 ) -> Result<(), EconomyError> {
     let zone = i32::try_from(write.zone_id).map_err(|e| EconomyError::Other(e.into()))?;
     for delta in write.ordered_deltas() {
@@ -479,23 +503,10 @@ pub(super) async fn checkpoint_in(
             vec![receipt.account_id.into(), receipt.operation.clone().into(), receipt.request_key.into(), receipt.character_id.into(),
                  receipt.fingerprint.clone().into(), receipt.response().into()]).await?;
     }
-    // P5-D18: the economy facts are derived from the ledger rows here; the zone emits none.
-    let derived = crate::application::economy_facts::derive_write_facts(write)?;
-    for fact in write.outbox.iter().chain(&derived) {
-        let mut payload = fact.payload.clone();
-        if let serde_json::Value::Object(map) = &mut payload {
-            map.insert("fact_id".into(), serde_json::Value::String(fact.fact_id.to_string()));
-        }
-        execute(
-            tx,
-            "INSERT INTO outbox(subject,payload) VALUES($1,$2)",
-            vec![
-                format!("nightfall.item.{}", fact.subject).into(),
-                payload.into(),
-            ],
-        )
-        .await?;
-    }
+    // P5-D18: the economy facts are derived from the ledger rows here (with the same tick's
+    // V7 character rows of the item projection, P5-D22); the zone emits none.
+    let derived = crate::application::economy_facts::derive_write_facts(write, character_rows)?;
+    insert_facts(tx, write.outbox.iter().chain(&derived)).await?;
     for key in &write.lease_releases {
         let deleted = execute(tx, "DELETE FROM economy_leases WHERE owner_kind=$1 AND owner_id=$2 AND zone_id=$3 AND epoch=$4",
             vec![key.kind.name().into(), format!("{:039}", key.owner).into(), zone.into(), signed(write.epoch)?.into()]).await?;

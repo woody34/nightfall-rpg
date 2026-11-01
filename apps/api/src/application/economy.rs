@@ -703,6 +703,10 @@ impl EconomyCheckpointWrite {
                 ));
             }
         }
+        // P5-D22: character-owner rows travel in the character's item projection.
+        if self.ledger.iter().any(|row| row.owner_kind == "character") {
+            return Err(EconomyError::Constraint("economy_character_row_in_economy_write".into()));
+        }
         let mut scopes = std::collections::BTreeSet::new();
         for receipt in &self.receipts {
             if !ECONOMY_RECEIPT_OPERATIONS.contains(&receipt.operation.as_str())

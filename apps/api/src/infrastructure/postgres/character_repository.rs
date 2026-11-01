@@ -677,17 +677,12 @@ impl PgCharacterRepository {
         }
         // P5-Q13: the economy rows of this character are the ledger of its changed scalars,
         // which only the V6 item projection writes.
-        let economy_rows = economy
-            .map(|write| {
-                crate::application::ports::EconomyCharacterRow::of_write(cp.character_id, write)
-            })
+        // P5-D22: the character's economy rows are in the item projection; the economy write
+        // carries the other owners and the B13 links (character rows refused).
+        let links = economy
+            .map(crate::application::ports::IdentityLinks::of_write)
             .transpose()?
             .unwrap_or_default();
-        if items.is_none() && !economy_rows.is_empty() {
-            return Err(CheckpointError::Constraint(
-                "economy_character_rows_need_projection".into(),
-            ));
-        }
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
@@ -919,7 +914,7 @@ impl PgCharacterRepository {
             work.validate_before_with_economy(
                 phase4_original.as_ref(),
                 self.phase4_rules.as_deref(),
-                &economy_rows,
+                &links,
             )?;
         } else {
             crate::application::ports::validate_item_retention(
@@ -947,6 +942,14 @@ impl PgCharacterRepository {
         // rows, (2) the item settlement, (3) container inserts, (4) the rest of the economy
         // write. A withdraw (container Delete + inventory upsert of the same id) and a deposit
         // (inventory delete + container Insert of the same id) both hold.
+        let character_facts: Vec<crate::application::economy_facts::FactRow> = items
+            .map(|work| {
+                crate::application::economy_facts::FactRow::of_projection(
+                    cp.character_id.as_uuid(),
+                    work,
+                )
+            })
+            .unwrap_or_default();
         if let Some(write) = economy {
             super::economy::container_removals(&tx, write)
                 .await
@@ -959,7 +962,7 @@ impl PgCharacterRepository {
                 work,
                 phase4_original.as_ref(),
                 self.phase4_rules.as_deref(),
-                &economy_rows,
+                &links,
             )
             .await?;
         } else if let Some(phase4) = &cp.phase4 {
@@ -987,12 +990,26 @@ impl PgCharacterRepository {
         // and the economy outbox commit in this same revision-fenced transaction, after the
         // character fence above; a writer whose leases were released is fenced out.
         if let Some(write) = economy {
-            super::economy::checkpoint_in(&tx, write, super::economy::DeltaPhase::InsertsOnly)
+            super::economy::checkpoint_in(
+                &tx,
+                write,
+                super::economy::DeltaPhase::InsertsOnly,
+                &character_facts,
+            )
+            .await
+            .map_err(super::economy::checkpoint_error)?;
+        } else if !character_facts.is_empty() {
+            // P5-D18: a V7 tick with only character rows (for example a vendor buy).
+            let facts = crate::application::economy_facts::derive_facts(
+                items.map_or(0, |w| w.zone.0),
+                items.map_or(0, |w| w.epoch),
+                items.map_or(0, |w| w.projection.tick.0),
+                &character_facts,
+            )
+            .map_err(super::economy::checkpoint_error)?;
+            super::economy::insert_facts(&tx, facts.iter())
                 .await
                 .map_err(super::economy::checkpoint_error)?;
-            if items.is_some() && !economy_rows.is_empty() {
-                super::item_settlement::check_row_ordinals(&tx).await?;
-            }
         }
 
         for event in events {

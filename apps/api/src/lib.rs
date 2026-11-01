@@ -242,10 +242,8 @@ fn economy_queries(
     if zone.phase5_rules_hash() != Some(rules.hash_hex().as_str()) {
         return None;
     }
-    // Merchant entity → pinned NPC id bindings arrive with the zone's merchant spawns (Z 3.7,
-    // P5-Q14); until then `ListBuylist` answers NOT_FOUND for every merchant.
-    let zone_reads =
-        application::ZoneEconomyReads::new(zone.clone(), std::collections::BTreeMap::new());
+    // Merchant entities resolve through the spawn-slot binding (P5-Q14).
+    let zone_reads = application::ZoneEconomyReads::new(zone.clone());
     Some(Arc::new(application::use_cases::EconomyQueries::new(
         deps.characters.clone(),
         reads,

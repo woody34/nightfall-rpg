@@ -86,6 +86,48 @@ impl FactRow {
         })
     }
 
+    /// A V7 character row of the item projection (P5-D22): the receipt and cause come from its
+    /// `economy` audit cause. Pre-V7 operations derive no economy fact (`None`).
+    #[must_use]
+    pub fn of_plan(
+        character: Uuid,
+        delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+    ) -> Option<Self> {
+        if !delta.operation.is_economy() {
+            return None;
+        }
+        let cause = crate::application::ports::economy_cause(delta);
+        let text = |name: &str| {
+            cause
+                .and_then(|c| crate::application::ports::economy_text(c, name))
+                .map(str::to_owned)
+        };
+        Some(Self {
+            owner_kind: "character".into(),
+            owner: character,
+            instance: delta.instance.get(),
+            op: crate::application::ports::ledger_op_name(delta.operation)?.to_owned(),
+            ordinal: delta.operation_ordinal,
+            template_id: delta.template().unwrap_or(0),
+            count_delta: delta.count_delta,
+            receipt: text("receipt"),
+            causes: text("cause").into_iter().collect(),
+        })
+    }
+
+    /// The V7 character rows of an item projection, in ledger order.
+    #[must_use]
+    pub fn of_projection(
+        character: Uuid,
+        work: &crate::application::ports::ItemCheckpointWork,
+    ) -> Vec<Self> {
+        work.projection
+            .ledger
+            .iter()
+            .filter_map(|delta| Self::of_plan(character, delta))
+            .collect()
+    }
+
     /// The operation key: the receipt, else the first cause.
     fn key(&self) -> Option<&str> {
         self.receipt
@@ -186,15 +228,18 @@ pub fn derive_facts(
     Ok(facts)
 }
 
-/// The facts of an economy write's own ledger rows.
+/// The facts of an economy write's ledger rows plus the same tick's V7 character rows of the
+/// item projection (P5-D22), so both halves of a transfer form one fact.
 pub fn derive_write_facts(
     write: &super::economy::EconomyCheckpointWrite,
+    character_rows: &[FactRow],
 ) -> Result<Vec<OutboxFact>, EconomyError> {
-    let rows = write
+    let mut rows = write
         .ledger
         .iter()
         .map(FactRow::of_owner_row)
         .collect::<Result<Vec<_>, _>>()?;
+    rows.extend(character_rows.iter().cloned());
     derive_facts(write.zone_id, write.epoch, write.tick, &rows)
 }
 
@@ -202,6 +247,7 @@ pub fn derive_write_facts(
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
+    use crate::domain::zone::phase4_projection::ItemOperation;
 
     fn row(owner_kind: &str, op: &str, instance: u64, delta: serde_json::Value) -> OwnerLedgerRow {
         OwnerLedgerRow {
@@ -216,6 +262,37 @@ mod tests {
             operation_ordinal: 0,
             delta,
             receipt_ref: None,
+        }
+    }
+
+    fn plan(
+        operation: crate::domain::zone::phase4_projection::ItemOperation,
+        instance: u64,
+        template: u32,
+        count: u64,
+        receipt: &str,
+    ) -> crate::domain::zone::phase4_projection::ItemDeltaPlan {
+        use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue};
+        let after: crate::domain::zone::ItemInstance = serde_json::from_value(serde_json::json!({
+            "id": instance, "template_id": template, "count": count, "location": "inventory",
+            "slot": null, "enchant": 0, "augment_id": null, "charges": 0, "created_tick": 1, "revision": 1
+        }))
+        .unwrap();
+        crate::domain::zone::phase4_projection::ItemDeltaPlan {
+            operation,
+            operation_ordinal: 0,
+            instance: after.id,
+            before: None,
+            after: Some(after),
+            count_delta: i64::try_from(count).unwrap(),
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![ItemAuditEvidence {
+                family: "economy".into(),
+                fields: [("receipt".to_owned(), ItemEvidenceValue::Text(receipt.into()))]
+                    .into_iter()
+                    .collect(),
+            }],
         }
     }
 
@@ -245,22 +322,10 @@ mod tests {
                     serde_json::json!({"before": item(1864, 2), "after": null, "receipt": pick}),
                 ),
                 row(
-                    "character",
-                    "transfer_in",
-                    11,
-                    serde_json::json!({"before": null, "after": item(1864, 2), "receipt": pick}),
-                ),
-                row(
                     "ground",
                     "destroy",
                     12,
                     serde_json::json!({"before": item(57, 10), "after": null, "receipt": split, "causes": ["party_split:x"]}),
-                ),
-                row(
-                    "character",
-                    "party_split",
-                    13,
-                    serde_json::json!({"before": null, "after": item(57, 5), "count_delta": 5, "receipt": split}),
                 ),
                 row(
                     "ground",
@@ -277,7 +342,17 @@ mod tests {
             ],
             ..Default::default()
         };
-        let facts = derive_write_facts(&write).unwrap();
+        // P5-D22: the character halves are V7 rows of the item projection.
+        let character = Uuid::from_u128(8);
+        let rows: Vec<FactRow> = [
+            plan(ItemOperation::TransferIn, 11, 1864, 2, pick),
+            plan(ItemOperation::PartySplit, 13, 57, 5, split),
+        ]
+        .iter()
+        .filter_map(|delta| FactRow::of_plan(character, delta))
+        .collect();
+        assert_eq!(rows.len(), 2);
+        let facts = derive_write_facts(&write, &rows).unwrap();
         let subjects: Vec<&str> = facts.iter().map(|f| f.subject.as_str()).collect();
         assert_eq!(
             subjects,
@@ -292,10 +367,10 @@ mod tests {
         assert_eq!(facts[2].payload["rows"][1]["count_delta"], 5);
         assert_eq!(facts[1].payload["rows"][0]["count_delta"], -2);
         // The same tick derives the same ids (B8 idempotence); another tick, other ids.
-        assert_eq!(derive_write_facts(&write).unwrap(), facts);
+        assert_eq!(derive_write_facts(&write, &rows).unwrap(), facts);
         let mut later = write.clone();
         later.tick = 31;
-        assert_ne!(derive_write_facts(&later).unwrap()[0].fact_id, facts[0].fact_id);
+        assert_ne!(derive_write_facts(&later, &rows).unwrap()[0].fact_id, facts[0].fact_id);
         assert!(facts
             .iter()
             .all(|f| super::super::economy::OUTBOX_SUBJECTS.contains(&f.subject.as_str())));

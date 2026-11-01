@@ -2,8 +2,6 @@
 //! running zone actor: admitted state, peace square and vendor state at the zone's current tick.
 //! It reads an actor snapshot only; nothing is mutated or enqueued.
 
-use std::collections::BTreeMap;
-
 use async_trait::async_trait;
 use uuid::Uuid;
 
@@ -15,15 +13,15 @@ use crate::domain::zone::{EntityId, EntityKind, ZoneSnapshot};
 /// The zone read port over one zone handle (Phase 5 runs a single test zone).
 pub struct ZoneEconomyReads {
     zone: ZoneHandle,
-    /// Fixed merchant NPCs of the zone: entity name → pinned NPC id (the buylist owner).
-    merchants: BTreeMap<String, u32>,
 }
 
 impl ZoneEconomyReads {
-    /// A read port over `zone`, binding its merchant NPC names to their pinned ids.
+    /// A read port over `zone`. Merchant entities resolve to their pinned NPC id through the
+    /// spawn-slot binding (`ZoneSnapshot::pinned_npc_id`, P5-Q14), as the zone's own vendor
+    /// intents do.
     #[must_use]
-    pub const fn new(zone: ZoneHandle, merchants: BTreeMap<String, u32>) -> Self {
-        Self { zone, merchants }
+    pub const fn new(zone: ZoneHandle) -> Self {
+        Self { zone }
     }
 
     async fn snapshot(&self) -> Result<ZoneSnapshot, AppError> {
@@ -68,14 +66,11 @@ impl EconomyZoneReads for ZoneEconomyReads {
             return Ok(None);
         }
         let merchant = EntityId::from_uuid(merchant);
-        let Some(entity) = snapshot
+        let is_npc = snapshot
             .entities
             .iter()
-            .find(|e| e.id == merchant && e.kind == EntityKind::Npc)
-        else {
-            return Ok(None);
-        };
-        let Some(npc_id) = self.merchants.get(&entity.name).copied() else {
+            .any(|e| e.id == merchant && e.kind == EntityKind::Npc);
+        let Some(npc_id) = snapshot.pinned_npc_id(merchant).filter(|_| is_npc) else {
             return Ok(None);
         };
         let Some(block) = snapshot.phase5.as_ref() else {
