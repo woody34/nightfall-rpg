@@ -4,6 +4,8 @@
 #include "UI/NightfallClassDialog.h"
 #include "UI/NightfallSkillDialog.h"
 #include "UI/NightfallInventoryDialog.h"
+#include "UI/NightfallEconomyDialog.h"
+#include "Economy/EconomyStateSubsystem.h"
 #include "Items/InventoryStateSubsystem.h"
 #include "Skills/SkillStateSubsystem.h"
 #include "Components/InputComponent.h"
@@ -87,6 +89,10 @@ void ANightfallPlayerController::BindSkillKeys()
  const FKey ItemKeys[]={EKeys::F1,EKeys::F2,EKeys::F3,EKeys::F4,EKeys::F5,EKeys::F6,EKeys::F7,EKeys::F8,EKeys::F9};
  for(int32 Index=0;Index<9;++Index){auto& B=InputComponent->BindKey(ItemKeys[Index],IE_Pressed,this,&ANightfallPlayerController::OpenInventoryDialog);B.KeyDelegate.GetDelegateForManualSet().BindWeakLambda(this,[this,Index]{if((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport()) || (InventoryDialog && InventoryDialog->IsInViewport()))return;if(GetGameInstance())if(auto* Items=GetGameInstance()->GetSubsystem<UInventoryStateSubsystem>())Items->ActivateHotbar(Index);});}
  InputComponent->BindKey(EKeys::I,IE_Pressed,this,&ANightfallPlayerController::OpenInventoryDialog);
+ // Story 5.3: V opens the target merchant's buylist, X its multisell lists, R the recipe book.
+ InputComponent->BindKey(EKeys::V,IE_Pressed,this,&ANightfallPlayerController::OpenVendorDialog);
+ InputComponent->BindKey(EKeys::X,IE_Pressed,this,&ANightfallPlayerController::OpenMultisellDialogFromKey);
+ InputComponent->BindKey(EKeys::R,IE_Pressed,this,&ANightfallPlayerController::OpenRecipeDialog);
 
 }
 
@@ -236,6 +242,24 @@ void ANightfallPlayerController::OpenSkillDialog()
  if(SkillDialog){SkillDialog->AddToViewport(20);SkillDialog->ActivateWidget();}
 }
 
+void ANightfallPlayerController::OpenVendorDialog()
+{
+ auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
+ if(!VendorDialog)VendorDialog=CreateWidget<UNightfallVendorDialog>(this);
+ if(VendorDialog){if(!VendorDialog->IsInViewport())VendorDialog->AddToViewport(55);VendorDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId());VendorDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenMultisellDialog(uint32 ListId)
+{
+ auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
+ if(!MultisellDialog)MultisellDialog=CreateWidget<UNightfallMultisellDialog>(this);
+ if(MultisellDialog){if(!MultisellDialog->IsInViewport())MultisellDialog->AddToViewport(55);MultisellDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId(),ListId);MultisellDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenRecipeDialog()
+{
+ auto* GI=GetGameInstance();if(!GI)return;
+ if(!RecipeDialog)RecipeDialog=CreateWidget<UNightfallRecipeDialog>(this);
+ if(RecipeDialog){if(!RecipeDialog->IsInViewport())RecipeDialog->AddToViewport(55);RecipeDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>());RecipeDialog->ActivateWidget();}
+}
 void ANightfallPlayerController::OpenInventoryDialog()
 {
  if(!InventoryDialog)InventoryDialog=CreateWidget<UNightfallInventoryDialog>(this);
