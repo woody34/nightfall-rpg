@@ -1596,6 +1596,10 @@ fn item_events(
             ItemOperation::Refine | ItemOperation::CancelRefine => {
                 anyhow::bail!("refine audit must come from its captured operation")
             },
+            // Story 3.7: a multisell product is an Exchange row with one `economy` cause and no
+            // receipt; the economy writer derives its ItemExchanged fact (P5-D18). A Phase 4 SA
+            // exchange keeps its captured audit.
+            ItemOperation::Exchange if super::ports::economy_cause(delta).is_some() => continue,
             ItemOperation::Exchange => {
                 anyhow::bail!("exchange audit must come from its captured operation")
             },

@@ -13,6 +13,13 @@ class UNightfallInventoryDialog;
 class UNightfallVendorDialog;
 class UNightfallMultisellDialog;
 class UNightfallRecipeDialog;
+class UNightfallTradeDialog;
+class UNightfallStoreSetupDialog;
+class UNightfallStoreVisitDialog;
+class UNightfallKeeperDialog;
+class UNightfallMailDialog;
+class UNightfallAuctionDialog;
+class UNightfallManorDialog;
 class AClassMasterActor;
 
 /**
@@ -71,6 +78,15 @@ public:
 	void OpenMultisellDialog(uint32 ListId = 0);
 	void OpenRecipeDialog();
 	void OpenMultisellDialogFromKey() { OpenMultisellDialog(0); }
+	/** Story 5.4: T trades with the target player, P sets up the own private store, B visits the target's store. */
+	void OpenTradeDialog();
+	void OpenStoreSetupDialog();
+	void OpenStoreVisitDialog();
+	/** Story 5.5: H the target warehouse keeper, M mail, Y the target auctioneer, N the target manor manager. */
+	void OpenKeeperDialog();
+	void OpenMailDialog();
+	void OpenAuctionDialog();
+	void OpenManorDialog();
 	/** Production mouse-hit resolver and key-binding setup, also exercised headlessly. */
 	bool ClickEntityProxy(const FString& EntityId);
 	void BindSkillKeys();
@@ -88,6 +104,13 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UNightfallInventoryDialog> InventoryDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallVendorDialog> VendorDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallMultisellDialog> MultisellDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallTradeDialog> TradeDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallStoreSetupDialog> StoreSetupDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallStoreVisitDialog> StoreVisitDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallKeeperDialog> KeeperDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallMailDialog> MailDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallAuctionDialog> AuctionDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallManorDialog> ManorDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallRecipeDialog> RecipeDialog;
 	void ShowClassMaster();
 	void LoadClassCatalogue();

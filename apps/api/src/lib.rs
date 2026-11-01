@@ -242,8 +242,8 @@ fn economy_queries(
     if zone.phase5_rules_hash() != Some(rules.hash_hex().as_str()) {
         return None;
     }
-    // Merchant entities resolve through the spawn-slot binding (P5-Q14).
-    let zone_reads = application::ZoneEconomyReads::new(zone.clone());
+    // Merchant entities resolve through the merchant fixtures (P5-D29).
+    let zone_reads = application::ZoneEconomyReads::new(zone.clone(), rules.clone());
     Some(Arc::new(application::use_cases::EconomyQueries::new(
         deps.characters.clone(),
         reads,

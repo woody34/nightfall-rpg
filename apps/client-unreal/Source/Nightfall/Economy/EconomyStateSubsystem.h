@@ -91,6 +91,8 @@ public:
  const TOptional<FGrpcNightfallV1TradeRequestReceived>& TradeRequest() const { return PendingTrade; }
  const FGrpcNightfallV1PrivateStoreChanged* Store(const FString& Owner) const { return Stores.Find(Owner.ToLower()); }
  const TMap<FString, FGrpcNightfallV1PrivateStoreChanged>& AllStores() const { return Stores; }
+ /** The own player entity id (lower case); empty before admission. */
+ FString OwnEntityId() const;
  struct FMailNotice { FGrpcNightfallV1MailNotification Notice; int64 ReceivedUnixMs = 0; };
  const TArray<FMailNotice>& MailNotices() const { return Mail; }
  const TOptional<FGrpcNightfallV1ListMailResponse>& Inbox() const { return InboxView; }
@@ -142,6 +144,25 @@ public:
  void RefreshBuylist(); void RefreshWarehouse(); void RefreshFreight(); void RefreshMail(); void RefreshAuctions();
  const TArray<uint64>& SoldInstances() const { return Sold; }
 
+ // --- Story 5.5: the container, mail, auction and manor dialogs (detached read views) ---
+ const TOptional<FGrpcNightfallV1GetWarehouseResponse>& Warehouse() const { return WarehouseView; }
+ const TOptional<FGrpcNightfallV1GetFreightResponse>& Freight() const { return FreightView; }
+ /** Fresh warehouse and freight views now: a keeper dialog opened (not throttled). */
+ void OpenContainers();
+ /** Fresh inbox and sent-box views now: the mail dialog opened (not throttled). */
+ void OpenMailboxes();
+ /** ReadMail for one message (the body and, in a peace square, the attachments); writes nothing. */
+ void OpenMail(const FString& MessageId);
+ const FGrpcNightfallV1ReadMailResponse* MailBody(const FString& MessageId) const { return MailBodies.Find(MessageId.ToLower()); }
+ /** ListItemAuctions of one auctioneer instance now. */
+ void OpenAuctions(uint32 InstanceNpcId);
+ uint32 AuctionInstance() const { return LastAuctionNpc; }
+ /** GetManorData of one castle now. */
+ void OpenManor(uint32 CastleId);
+ const TOptional<FGrpcNightfallV1GetManorDataResponse>& Manor() const { return ManorView; }
+ /** The last answer to the request (Op, Key) was CONTAINER_BUSY and nothing of it is outstanding. */
+ bool ContainerBusy(EGrpcNightfallV1ItemOperation Op, const FString& Key) const;
+
  // --- Commands (phase5-grammar.py COMMANDS): parse, resolve received bindings, send with D43 keys ---
  bool Execute(const TArray<FString>& Tokens);
  /**
@@ -155,6 +176,8 @@ public:
  const FString& BuylistMerchant() const { return LastMerchant; }
  /** Requests a multisell list once (GetMultisellList is static data of the epoch). */
  void OpenMultisell(uint32 ListId);
+ /** The pinned PreparedEntry stride: a MultisellChoose entry id is `entry_id x 100000 + enchant` (Z lane 3.7). */
+ static constexpr uint32 MultisellEntryStride = 100000;
  const FGrpcNightfallV1GetMultisellListResponse* Multisell(uint32 ListId) const { return MultisellViews.Find(ListId); }
  void ApplyMultisell(const FGrpcNightfallV1GetMultisellListResponse& R);
  static TOptional<EGrpcNightfallV1ItemOperation> OperationOf(const FString& CommandName);
@@ -178,6 +201,10 @@ public:
  void SetFreightProviderForTesting(FFreightProvider P) { FreightProvider = MoveTemp(P); }
  void SetMailProviderForTesting(FMailProvider P) { MailProvider = MoveTemp(P); }
  void SetAuctionsProviderForTesting(FAuctionsProvider P) { AuctionsProvider = MoveTemp(P); }
+ using FReadMailProvider = TFunction<void(const FGrpcNightfallV1ReadMailRequest&, USessionClient::FReadMailCallback)>;
+ using FManorProvider = TFunction<void(const FGrpcNightfallV1GetManorDataRequest&, USessionClient::FGetManorDataCallback)>;
+ void SetReadMailProviderForTesting(FReadMailProvider P) { ReadMailProvider = MoveTemp(P); }
+ void SetManorProviderForTesting(FManorProvider P) { ManorProvider = MoveTemp(P); }
  void SetClockForTesting(TFunction<double()> C) { Clock = MoveTemp(C); }
  void ApplyBuylist(const FGrpcNightfallV1ListBuylistResponse& R);
  void ApplyWarehouse(const FGrpcNightfallV1GetWarehouseResponse& R);
@@ -254,6 +281,10 @@ private:
  bool bWarehouseKnown = false, bFreightKnown = false; uint32 FreightCapacityValue = 0;
  TOptional<FGrpcNightfallV1ListMailResponse> InboxView, OutboxView; TMap<FString, FString> MailSubjects; // message id -> subject, every header ever seen
  TOptional<FGrpcNightfallV1ListItemAuctionsResponse> AuctionsView; uint32 LastAuctionNpc = 0;
+ TOptional<FGrpcNightfallV1GetWarehouseResponse> WarehouseView; TOptional<FGrpcNightfallV1GetFreightResponse> FreightView;
+ TMap<FString, FGrpcNightfallV1ReadMailResponse> MailBodies; FReadMailProvider ReadMailProvider;
+ TOptional<FGrpcNightfallV1GetManorDataResponse> ManorView; uint32 ManorCastle = 0; FManorProvider ManorProvider;
+ TSet<FString> BusyNow; // request scopes whose last answer was CONTAINER_BUSY
  TMap<uint32, FGrpcNightfallV1GetMultisellListResponse> MultisellViews; TSet<uint32> MultisellRequested; FMultisellProvider MultisellProvider;
  FBuylistProvider BuylistProvider; FWarehouseProvider WarehouseProvider; FFreightProvider FreightProvider; FMailProvider MailProvider; FAuctionsProvider AuctionsProvider;
  double LastBuylistRequest = -1e9, LastWarehouseRequest = -1e9, LastFreightRequest = -1e9, LastMailRequest = -1e9, LastAuctionRequest = -1e9;

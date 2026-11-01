@@ -339,7 +339,10 @@ record!(RecipeConfig {
     craft_masterwork: bool,
     dwarf_recipe_limit: u32,
     common_recipe_limit: u32,
-    alternative_crafting: bool
+    alternative_crafting: bool,
+    // Pinned `BlacksmithUseRecipes` (GC/character.properties:520), hashed for the Z lane 3.7
+    // multisell consumption of the maintained ingredients.
+    blacksmith_use_recipes: bool
 });
 record!(CraftRank {
     rank: u32,

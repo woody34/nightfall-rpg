@@ -913,8 +913,10 @@ mod flow_tests {
                 .get(&template)
                 .is_none_or(|c| !c.admitted));
         }
-        // A herb stays deferred (its skill is not promoted).
-        assert!(!rules.v7_items().unwrap().parts().capabilities[&8600].admitted);
+        // A herb whose skill is not in the V7 view stays deferred: 8603 (skill 2279 has the
+        // blocker effect:MpPerMax). A herb with a clean skill (8600, skill 2278) is admitted.
+        assert!(!rules.v7_items().unwrap().parts().capabilities[&8603].admitted);
+        assert!(rules.v7_items().unwrap().parts().capabilities[&8600].admitted);
     }
 
     /// §10.6 end to end on the handlers and effects: Seed binds once; each Sow consumes one

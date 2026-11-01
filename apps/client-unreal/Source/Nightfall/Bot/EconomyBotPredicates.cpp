@@ -182,7 +182,8 @@ void EconomyBotPredicates::Register(FBotPredicateRegistry& R)
    if (Name == TEXT("ground_item_count_between")) { const auto G = E->GroundOf(uint32(V(0))); return Between(G.IsEmpty() ? TOptional<uint64>() : TOptional<uint64>(G[0]->Detail.Count.Value), V(1), V(2)); }
    if (Name == TEXT("ground_item_gone") || Name == TEXT("ground_despawn_on_grid")) { const UEconomyStateSubsystem::FGoneGroundItem* Gone = nullptr; for (const auto& P : E->GoneGroundItems()) if (P.Value.Detail.TemplateId.Value == V(0) && (!Gone || P.Value.DespawnTick > Gone->DespawnTick)) Gone = &P.Value; if (!Gone) return Unknown(TEXT("no despawn received")); if (Name == TEXT("ground_item_gone")) return { true, TEXT("received despawn") }; return { Gone->DespawnTick % 50 == 0 && Gone->DespawnTick > Gone->Detail.DroppedTick.Value, FString::Printf(TEXT("despawn tick %llu dropped %llu (limit from the sidecar, 6.6)"), Gone->DespawnTick, Gone->Detail.DroppedTick.Value) }; }
    if (Name == TEXT("ground_item_any")) return Flag(!E->GroundItems().IsEmpty(), TEXT("received ground entity"), TEXT("none"));
-   if (Name == TEXT("ground_item_count")) return Number(uint64(E->GroundItems().Num()), A[0], V(1));
+   // Story 5.6: a count of received facts is UNKNOWN until the owner baseline (admission) arrived.
+   if (Name == TEXT("ground_item_count")) return E->InventoryTick() ? Number(uint64(E->GroundItems().Num()), A[0], V(1)) : Unknown(TEXT("not admitted: no owner baseline"));
    // receipts
    if (Name == TEXT("economy_result")) { const auto* L = E->LastReceipt(); return Named(L ? UEconomyStateSubsystem::OperationName(L->Result.Operation) : FString(), A[1], L != nullptr); }
    if (Name == TEXT("economy_result_count")) return Number(uint64(E->ReceiptCount(*UEconomyStateSubsystem::ParseOperation(A[0]))), A[1], V(2));
@@ -200,7 +201,7 @@ void EconomyBotPredicates::Register(FBotPredicateRegistry& R)
    if (Name == TEXT("by_turn_cursor_advanced")) { TSet<FString> Rcp; for (const auto& L : E->LootLog()) Rcp.Add(L.Recipient.ToLower()); for (const auto& Rc : E->Receipts()) if (Rc.Result.Outcome.OutcomeCase == EGrpcNightfallV1EconomyResultOutcome::Pickup && Rc.Result.Outcome.Pickup.IsValid()) Rcp.Add(Rc.Result.Outcome.Pickup->Recipient.ToLower()); return { Rcp.Num() >= 2, FString::Printf(TEXT("%d distinct recipients"), Rcp.Num()) }; }
    if (Name == TEXT("loot_distributed")) return Flag(!E->LootLog().IsEmpty(), TEXT("received LootDistributed"), TEXT("none"));
    if (Name == TEXT("loot_distributed_mode")) return Named(E->LootLog().IsEmpty() ? FString() : EnumName(E->LootLog().Last().Mode, TEXT("LOOT_MODE_")), A[1], !E->LootLog().IsEmpty());
-   if (Name == TEXT("loot_distributed_count")) return Number(uint64(E->LootLog().Num()), A[0], V(1));
+   if (Name == TEXT("loot_distributed_count")) return E->InventoryTick() ? Number(uint64(E->LootLog().Num()), A[0], V(1)) : Unknown(TEXT("not admitted: no owner baseline"));
    if (Name == TEXT("loot_distributed_spoil")) { if (E->LootLog().IsEmpty()) return Unknown(); const bool S = E->LootLog().Last().Spoil; return { (A[1] == TEXT("true")) == S, S ? TEXT("true") : TEXT("false") }; }
    if (Name == TEXT("own_out_of_party_range")) { const auto X = E->OwnOutOfPartyRange(); return X.IsSet() ? Flag(*X, TEXT("beyond PartyRange2"), TEXT("within PartyRange2")) : Unknown(TEXT("leader position unknown")); }
    // corpses
@@ -227,11 +228,11 @@ void EconomyBotPredicates::Register(FBotPredicateRegistry& R)
    if (Name == TEXT("adena_split_share_between") || Name == TEXT("adena_delta")) { const auto D = E->AdenaDelta(); if (!D.IsSet()) return Unknown(TEXT("no mark or baseline")); if (Name == TEXT("adena_delta")) return { *D == FCString::Atoi64(*A[1]), FString::Printf(TEXT("%lld"), *D) }; return { *D >= 0 && uint64(*D) >= V(0) && uint64(*D) <= V(1), FString::Printf(TEXT("%lld"), *D) }; }
    if (Name == TEXT("loot_vote_phase")) return Named(E->LootVote().IsSet() ? EnumName(E->LootVote()->Phase, TEXT("LOOT_VOTE_PHASE_")) : FString(), A[1], E->LootVote().IsSet());
    // xp / sp / pk
-   if (Name == TEXT("xp_gained_events")) return Number(uint64(E->XpEvents()), A[0], V(1));
+   if (Name == TEXT("xp_gained_events")) return E->InventoryTick() ? Number(uint64(E->XpEvents()), A[0], V(1)) : Unknown(TEXT("not admitted: no owner baseline"));
    if (Name == TEXT("xp_gained_last")) return Number(E->LastXpAmount(), TEXT("=="), V(1));
    if (Name == TEXT("sp_gained_last")) return Number(E->LastSpAmount(), TEXT("=="), V(1));
    if (Name == TEXT("xp_gained_last_between")) return Between(E->LastXpAmount(), V(0), V(1));
-   if (Name == TEXT("sp_gained_events_for")) return Number(uint64(E->SpEventsAfterKill(NpcTemplate(A[0]))), TEXT("=="), V(2));
+   if (Name == TEXT("sp_gained_events_for")) return E->InventoryTick() ? Number(uint64(E->SpEventsAfterKill(NpcTemplate(A[0]))), TEXT("=="), V(2)) : Unknown(TEXT("not admitted: no owner baseline"));
    if (Name == TEXT("entity_gone")) return Flag(E->EntityGone(NpcTemplate(A[0])), TEXT("received despawn"), TEXT("none"));
    if (Name == TEXT("own_pk_count")) return Number(E->OwnStats().IsSet() ? TOptional<uint64>(E->OwnStats()->PkCount) : TOptional<uint64>(), A[0], V(1));
    if (Name == TEXT("pk_drop_count_between")) { const auto Nn = E->PkDropCount(); return Between(Nn.IsSet() ? TOptional<uint64>(uint64(*Nn)) : TOptional<uint64>(), V(0), V(1)); }

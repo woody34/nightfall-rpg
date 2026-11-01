@@ -7,6 +7,33 @@ sources = [
   { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00200-00299.xml", line = 1342, skill_id = 254 },
   { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02000-02099.xml", line = 1537, skill_id = 2097 },
   { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02000-02099.xml", line = 1558, skill_id = 2098 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1040, skill_id = 2244 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1124, skill_id = 2247 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1802, skill_id = 2278 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1848, skill_id = 2280 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1874, skill_id = 2281 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1900, skill_id = 2282 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1926, skill_id = 2283 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1952, skill_id = 2284 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", line = 1978, skill_id = 2285 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02300-02399.xml", line = 1192, skill_id = 2357 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02500-02599.xml", line = 307, skill_id = 2514 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02800-02899.xml", line = 2212, skill_id = 2897 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02800-02899.xml", line = 2240, skill_id = 2898 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02800-02899.xml", line = 2287, skill_id = 2899 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/09100-09199.xml", line = 1610, skill_id = 9161 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/09100-09199.xml", line = 1661, skill_id = 9163 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", line = 3, skill_id = 22000 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", line = 30, skill_id = 22001 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", line = 63, skill_id = 22002 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", line = 103, skill_id = 22003 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", line = 724, skill_id = 22029 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", line = 780, skill_id = 22031 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", line = 682, skill_id = 22128 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", line = 1323, skill_id = 22159 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", line = 1376, skill_id = 22161 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", line = 1427, skill_id = 22163 },
+  { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", line = 1454, skill_id = 22164 },
 ]
 schema_version = 1
 v6_skills_sha256 = "5c2378c9eab24f26fdef161c4965dc3567fc05eefe04186cdf095d84cad7f6d1"
@@ -121,3 +148,1737 @@ section = "effects"
 name = "Harvesting"
 params = {  }
 stat_children = []
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2244 }
+id = 2244
+key = "l2.skill.2244"
+l2_ref = "Herb of Life"
+max_level = 1
+operate_type = "A1"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [40]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", isMagic = "2", isRecoveryHerb = "true", magicLvl = "40", operateType = "A1", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Hp"
+params = { amount = "60", mode = "DIFF" }
+stat_children = []
+
+[[additions.skill.effects]]
+section = "effects"
+name = "HpPerMax"
+params = { power = "17" }
+stat_children = []
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2247 }
+id = 2247
+key = "l2.skill.2247"
+l2_ref = "Herb of Magic"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [40]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "MA_UP_HERB", level = [1], time_s = [300], is_debuff = false }
+source_sets = { abnormalLvl = "1", abnormalTime = "300", abnormalType = "MA_UP_HERB", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_herb_blue_i00", isMagic = "2", magicLvl = "40", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtk"
+value = ["1.75"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2278 }
+id = 2278
+key = "l2.skill.2278"
+l2_ref = "Herb of Life"
+max_level = 3
+operate_type = "A1"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0, 0, 0]
+mp_consume_end = [0, 0, 0]
+hp_consume = [0, 0, 0]
+magic_level = [1, 1, 1]
+effect_point = [100, 100, 100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", isMagic = "2", isRecoveryHerb = "true", magicLvl = "1", operateType = "A1", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "HpPerMax"
+params = { power = ["15", "25", "100"] }
+stat_children = []
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2280 }
+id = 2280
+key = "l2.skill.2280"
+l2_ref = "Herb of Power"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [40]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PA_UP", level = [3], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "3", abnormalTime = "300", abnormalType = "PA_UP", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_herb_red_i00", isMagic = "2", magicLvl = "40", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["1.15"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2281 }
+id = 2281
+key = "l2.skill.2281"
+l2_ref = "Herb of Magic"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [52]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "MA_UP", level = [3], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "3", abnormalTime = "300", abnormalType = "MA_UP", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_herb_blue_i00", isMagic = "2", magicLvl = "52", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtk"
+value = ["1.75"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2282 }
+id = 2282
+key = "l2.skill.2282"
+l2_ref = "Herb of Atk. Spd."
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [52]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "ATTACK_TIME_DOWN", level = [2], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "2", abnormalTime = "300", abnormalType = "ATTACK_TIME_DOWN", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys2.icon.etc_attack_sp_herb_i01", isMagic = "2", magicLvl = "52", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.33"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2283 }
+id = 2283
+key = "l2.skill.2283"
+l2_ref = "Herb of Casting Spd."
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [48]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "CASTING_TIME_DOWN", level = [3], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "3", abnormalTime = "300", abnormalType = "CASTING_TIME_DOWN", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_magic_sp_herb_i00", isMagic = "2", magicLvl = "48", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.3"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2284 }
+id = 2284
+key = "l2.skill.2284"
+l2_ref = "Herb of Critical Attack"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [52]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "CRITICAL_PROB_UP", level = [3], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "3", abnormalTime = "300", abnormalType = "CRITICAL_PROB_UP", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_critical_herb_i00", isMagic = "2", magicLvl = "52", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "critRate"
+value = ["1.3"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02200-02299.xml", skill_id = 2285 }
+id = 2285
+key = "l2.skill.2285"
+l2_ref = "Herb of Speed"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [30]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "SPEED_UP", level = [2], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "2", abnormalTime = "300", abnormalType = "SPEED_UP", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys2.icon.etc_move_herb_i01", isMagic = "2", magicLvl = "30", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["33"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02300-02399.xml", skill_id = 2357 }
+id = 2357
+key = "l2.skill.2357"
+l2_ref = "Fiery Demon Blood"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 0
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "EVIL_BLOOD", level = [1], time_s = [600], is_debuff = false }
+source_sets = { abnormalLvl = "1", abnormalTime = "600", abnormalType = "EVIL_BLOOD", affectScope = "SINGLE", effectPoint = "100", hitTime = "100", icon = "icon.etc_lesser_potion_red_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+stat_children = []
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02500-02599.xml", skill_id = 2514 }
+id = 2514
+key = "l2.skill.2514"
+l2_ref = "Herb of Critical Attack - Power"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [48]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "CRITICAL_DMG_UP", level = [3], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "3", abnormalTime = "300", abnormalType = "CRITICAL_DMG_UP", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys2.icon.etc_crt_force_herb_i01", isMagic = "2", magicLvl = "48", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "critDmg"
+value = ["1.35"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02800-02899.xml", skill_id = 2897 }
+id = 2897
+key = "l2.skill.2897"
+l2_ref = "Baguette's Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "WP_CHANGE_EVENT", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_WP;CHANGE_HAIR_B" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "WP_CHANGE_EVENT", abnormalVisualEffect = "CHANGE_WP;CHANGE_HAIR_B", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_herb_of_baguette", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regHp"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "MaxHp"
+params = { power = "10", type = "PER" }
+stat_children = []
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02800-02899.xml", skill_id = 2898 }
+id = 2898
+key = "l2.skill.2898"
+l2_ref = "Fresh Cream Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "WP_CHANGE_EVENT", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_WP;CHANGE_HAIR_G" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "WP_CHANGE_EVENT", abnormalVisualEffect = "CHANGE_WP;CHANGE_HAIR_G", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_herb_of_cream", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.15"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.1"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mDef"
+value = ["1.1"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "MaxHp"
+params = { power = "10", type = "PER" }
+stat_children = []
+
+[[additions.skill.effects]]
+section = "effects"
+name = "MaxMp"
+params = { power = "10", type = "PER" }
+stat_children = []
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pDef"
+value = ["1.1"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "debuffVuln"
+value = ["1.1"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["10"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/02800-02899.xml", skill_id = 2899 }
+id = 2899
+key = "l2.skill.2899"
+l2_ref = "Cheesecake Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "WP_CHANGE_EVENT", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_WP;CHANGE_HAIR_P" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "WP_CHANGE_EVENT", abnormalVisualEffect = "CHANGE_WP;CHANGE_HAIR_P", affectScope = "SINGLE", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "icon.etc_herb_of_cheesecake", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "MaxMp"
+params = { power = "10", type = "PER" }
+stat_children = []
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regMp"
+value = ["1.2"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/09100-09199.xml", skill_id = 9161 }
+id = 9161
+key = "l2.skill.9161"
+l2_ref = "Vesper's Mighty Power"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 0
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "WP_CHANGE_EVENT", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_VES_S" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "WP_CHANGE_EVENT", abnormalVisualEffect = "CHANGE_VES_S", affectScope = "SINGLE", effectPoint = "100", hitTime = "100", icon = "icon.weapon_vesper_slasher_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["1.15"]
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtk"
+value = ["1.2"]
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["10"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/09100-09199.xml", skill_id = 9163 }
+id = 9163
+key = "l2.skill.9163"
+l2_ref = "Invincible Vesper"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 0
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "WP_CHANGE_EVENT", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_VES_D" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "WP_CHANGE_EVENT", abnormalVisualEffect = "CHANGE_VES_D", affectScope = "SINGLE", effectPoint = "100", hitTime = "100", icon = "icon.weapon_dual_sword_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.2"]
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.2"]
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["20"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", skill_id = 22000 }
+id = 22000
+key = "l2.skill.22000"
+l2_ref = "Spicy Kimchee"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "300", abnormalType = "BR_EVENT_BUF1", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys.icon.etc_kimchi_power_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regHp"
+value = ["1.15"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regMp"
+value = ["1.2"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", skill_id = 22001 }
+id = 22001
+key = "l2.skill.22001"
+l2_ref = "Spicy Kimchee"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "300", abnormalType = "BR_EVENT_BUF1", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys.icon.etc_kimchi_power_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regHp"
+value = ["1.15"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtk"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regMp"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["1.12"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", skill_id = 22002 }
+id = 22002
+key = "l2.skill.22002"
+l2_ref = "Spicy Kimchee"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [300], is_debuff = false, visual = "VP_UP" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "300", abnormalType = "BR_EVENT_BUF1", abnormalVisualEffect = "VP_UP", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys.icon.etc_kimchi_power_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regHp"
+value = ["1.15"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtk"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "regMp"
+value = ["1.2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["1.12"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", skill_id = 22003 }
+id = 22003
+key = "l2.skill.22003"
+l2_ref = "Sour Sweet White Kimchee"
+max_level = 1
+operate_type = "A1"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys.icon.etc_kimchi_time_i00", isMagic = "2", magicLvl = "1", operateType = "A1", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+stat_children = []
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", skill_id = 22029 }
+id = 22029
+key = "l2.skill.22029"
+l2_ref = "Baguette's Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_WP;CHANGE_HAIR_B" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "BR_EVENT_BUF1", abnormalVisualEffect = "CHANGE_WP;CHANGE_HAIR_B", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys.icon.br_herb_of_baguette_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.1"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22000-22099.xml", skill_id = 22031 }
+id = 22031
+key = "l2.skill.22031"
+l2_ref = "Cheesecake Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player flyMounted=\"false\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [600], is_debuff = false, visual = "CHANGE_WP;CHANGE_HAIR_P" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "BR_EVENT_BUF1", abnormalVisualEffect = "CHANGE_WP;CHANGE_HAIR_P", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys.icon.br_herb_of_cheesecake_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.conditions]]
+kind = "player_flyMounted"
+value = false
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.15"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", skill_id = 22128 }
+id = 22128
+key = "l2.skill.22128"
+l2_ref = "Rudolph's Joy"
+max_level = 3
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 0
+cool_time_ms = 0
+reuse_ms = 0
+hit_cancel_ms = 0
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0, 0, 0]
+mp_consume_end = [0, 0, 0]
+hp_consume = [0, 0, 0]
+magic_level = [-1, -1, -1]
+effect_point = [100, 100, 100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = true
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF2", level = [1, 2, 3], time_s = [300, 300, 300], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = ["1", "2", "3"], abnormalTime = "300", abnormalType = "BR_EVENT_BUF2", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", icon = "icon.skill1256", irreplaceableBuff = "true", isMagic = "2", magicLvl = "-1", operateType = "A2", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.1", "1.15", "1.2"]
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.1", "1.15", "1.2"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", skill_id = 22159 }
+id = 22159
+key = "l2.skill.22159"
+l2_ref = "Vesper Super Power"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 0
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [600], is_debuff = false, visual = "BR_VESPER1" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "BR_EVENT_BUF1", abnormalVisualEffect = "BR_VESPER1", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitTime = "100", icon = "BranchSys2.icon.br_royal_crown_of_vesper_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["1.15"]
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtk"
+value = ["1.15"]
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["10"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", skill_id = 22161 }
+id = 22161
+key = "l2.skill.22161"
+l2_ref = "Invincible Vesper"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 0
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [600], is_debuff = false, visual = "BR_VESPER3" }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "BR_EVENT_BUF1", abnormalVisualEffect = "BR_VESPER3", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitTime = "100", icon = "BranchSys2.icon.br_noblesse_oblige_of_vesper_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.2"]
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.2"]
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["20"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", skill_id = 22163 }
+id = 22163
+key = "l2.skill.22163"
+l2_ref = "Hawk Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [600], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "BR_EVENT_BUF1", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys2.icon.br_hawk_herb_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.15"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "critRate"
+value = ["1.1"]
+
+[[additions]]
+clears = []
+[additions.skill]
+provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/22100-22199.xml", skill_id = 22164 }
+id = 22164
+key = "l2.skill.22164"
+l2_ref = "Eggplant Herb"
+max_level = 1
+operate_type = "A2"
+is_magic = 2
+target_type = "SELF"
+affect_scope = "SINGLE"
+cast_range = -1
+effect_range = -1
+hit_time_ms = 100
+cool_time_ms = 0
+reuse_ms = 2000
+hit_cancel_ms = 500
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
+mp_consume_start = [0]
+mp_consume_end = [0]
+hp_consume = [0]
+magic_level = [1]
+effect_point = [100]
+basic_property = "NONE"
+trait = "NONE"
+next_action_attack = false
+has_enchant_routes = false
+runtime_status = "executable"
+blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = true
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "BR_EVENT_BUF1", level = [1], time_s = [600], is_debuff = false }
+source_sets = { abnormalInstant = "true", abnormalLvl = "1", abnormalTime = "600", abnormalType = "BR_EVENT_BUF1", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "100", hitCancelTime = "500", hitTime = "100", icon = "BranchSys2.icon.br_eggplant_herb_i00", isMagic = "2", magicLvl = "1", operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "add"
+stat = "mCritRate"
+value = ["2"]
+
+[[additions.skill.effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[additions.skill.effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.1"]
