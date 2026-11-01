@@ -541,6 +541,43 @@ mod tests {
             .bind_skills(&bundle.skills)
             .unwrap_err()
             .contains("v6_skills_sha256"));
+        // A clean addition (herbs, P5-D19): executable, no blockers, empty clears.
+        let executable = bundle
+            .skills
+            .skills()
+            .skills()
+            .values()
+            .find(|s| s.runtime_status == RuntimeSkillStatus::Executable && s.operate_type == "A1")
+            .unwrap()
+            .clone();
+        let mut clean = parts();
+        let mut row = executable.clone();
+        row.id = SkillId(65_000);
+        clean
+            .skill_promotions
+            .additions
+            .push(crate::domain::zone::phase5_rules::SkillAddition {
+                clears: Vec::new(),
+                skill: row.clone(),
+            });
+        let mut clean = Phase5Rules::try_new(clean).unwrap();
+        clean.bind_skills(&bundle.skills).unwrap();
+        assert!(clean
+            .v7_skills()
+            .unwrap()
+            .skills()
+            .get(SkillId(65_000))
+            .is_some());
+        let mut deferred = parts();
+        let mut bad = row;
+        bad.runtime_status = RuntimeSkillStatus::Deferred;
+        deferred.skill_promotions.additions.push(
+            crate::domain::zone::phase5_rules::SkillAddition {
+                clears: Vec::new(),
+                skill: bad,
+            },
+        );
+        assert!(Phase5Rules::try_new(deferred).is_err(), "empty clears needs a clean row");
         let mut changed = parts();
         changed.skill_promotions.promotions[1].max_level = 10;
         let mut changed = Phase5Rules::try_new(changed).unwrap();

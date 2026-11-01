@@ -102,11 +102,13 @@ impl ZoneState {
             .map(|c| i64::from(c.sheet.level()))
     }
 
-    /// The `Seed` handler (§10.6): a living, non-raid monster not yet seeded; a seed of the
-    /// zone's castle area (the hashed fixture `castle_area`, E28). Binds `seed`/`seeder`
-    /// before the Sowing cast, as pinned. Every failure refuses `NOT_SEEDABLE`.
+    /// The `Seed` handler checks (§10.6, `Seed.java:42-90`): a living, non-raid monster not
+    /// yet *seeded* (pinned `isSeeded()`, the success flag: an unsown binding is replaced);
+    /// a seed of the zone's castle area (the hashed fixture `castle_area`, E28). Every
+    /// failure refuses `NOT_SEEDABLE`. Nothing changes here: [`Self::seed_bind_v7`] binds
+    /// once the Sowing cast has started, so a refused use changes nothing (I1).
     pub(super) fn seed_use_v7(
-        &mut self,
+        &self,
         caster: EntityId,
         seed: u32,
         target: Option<EntityId>,
@@ -131,24 +133,28 @@ impl ZoneState {
                 && !e.targeting.dead
         });
         let sidecar = phase5.canonical.npcs.get(&target);
-        if !living_monster
-            || raid
-            || sidecar.is_none_or(|n| n.seed.is_some())
-            || crop.castle != area
-        {
+        if !living_monster || raid || sidecar.is_none_or(|n| n.seeded) || crop.castle != area {
             return Err(RejectReason::NotSeedable);
         }
+        let _ = caster;
+        Ok(())
+    }
+
+    /// `target.setSeeded(seed, activeChar)` (`L2Attackable.java:1289-1294`): while not seeded,
+    /// the binding is (re)set to this seed and seeder.
+    pub(super) fn seed_bind_v7(&mut self, caster: EntityId, seed: u32, target: EntityId) {
         if let Some(npc) = self
             .phase5
             .as_mut()
             .and_then(|p| p.canonical.npcs.get_mut(&target))
         {
-            npc.seed = Some(SeedBinding {
-                seed,
-                seeder: caster,
-            });
+            if !npc.seeded {
+                npc.seed = Some(SeedBinding {
+                    seed,
+                    seeder: caster,
+                });
+            }
         }
-        Ok(())
     }
 
     /// The `Harvester` handler: a dead monster target (`Harvester.java:56-62`).
@@ -568,16 +574,19 @@ mod tests {
     clippy::indexing_slicing,
     clippy::too_many_lines,
     clippy::wildcard_enum_match_arm,
-    clippy::arithmetic_side_effects
+    clippy::arithmetic_side_effects,
+    clippy::panic
 )]
 mod flow_tests {
     use super::*;
+    use crate::domain::zone::{CombatRole, ItemInstanceId};
     use crate::infrastructure::zone_data;
 
     use super::super::item_materialize::tests::{fresh_zone_and_kit_load, spawn_kit};
 
     const P1: u128 = 71;
     const SEED: u32 = 5016; // Dark Coda seed, castle 1, crop 5073, level 10.
+    const P2_SEEDER: u128 = 99;
 
     fn id(n: u128) -> EntityId {
         EntityId::from_uuid(uuid::Uuid::from_u128(n))
@@ -585,6 +594,11 @@ mod flow_tests {
 
     /// A V7 zone with one kit player holding 20 seeds and one sowable pinned monster.
     fn zone() -> (ZoneState, EntityId) {
+        zone_with(20)
+    }
+
+    /// The fixture with a `seeds`-count seed stack.
+    fn zone_with(seeds: u64) -> (ZoneState, EntityId) {
         let (mut zone, mut load, _) = fresh_zone_and_kit_load(true);
         load.phase5 = Some(crate::domain::zone::Phase5Checkpoint {
             schema_version: 1,
@@ -632,7 +646,7 @@ mod flow_tests {
                 }),
                 id: seed_id,
                 template_id: SEED,
-                count: 20,
+                count: seeds,
                 location: ItemLocation::Inventory,
                 slot: None,
                 enchant: 0,
@@ -646,6 +660,228 @@ mod flow_tests {
         let player = items.canonical.players.get_mut(&id(P1)).unwrap();
         player.weight = inventory_totals(&player.inventory, &rules).unwrap().2;
         (zone, npc)
+    }
+
+    fn use_input(
+        zone: &ZoneState,
+        key: u128,
+        seq: u32,
+        instance: ItemInstanceId,
+        target: EntityId,
+    ) -> crate::domain::zone::ZoneInput {
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&id(P1)].combat.as_ref().unwrap().role
+        else {
+            panic!("player")
+        };
+        let command = crate::domain::zone::ItemCommand::new(
+            id(P1),
+            uuid::Uuid::from_u128(key),
+            crate::domain::zone::ItemCommandKind::Use {
+                instance,
+                target: zone.binding(target),
+            },
+        )
+        .unwrap()
+        .with_account(player.identity.account_id)
+        .unwrap();
+        crate::domain::zone::ZoneInput::session(
+            id(P1),
+            crate::domain::zone::SessionGeneration(1),
+            seq,
+            crate::domain::zone::ZoneCommand::Item(Box::new(command)),
+        )
+    }
+
+    /// One tick, then the snapshot restores (the item-cast lanes are validated there).
+    fn step(
+        zone: &mut ZoneState,
+        inputs: Vec<crate::domain::zone::ZoneInput>,
+    ) -> crate::domain::zone::AppliedTick {
+        let tick = zone.run_tick(zone.draft(inputs)).unwrap();
+        let items = std::sync::Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let economy = std::sync::Arc::clone(&zone.phase5.as_ref().unwrap().rules);
+        let restored =
+            ZoneState::from_snapshot_with_bundles(zone.snapshot(), Some(items), Some(economy))
+                .unwrap_or_else(|e| panic!("tick {}: restore {e:?}", tick.tick.0));
+        assert_eq!(restored.state_digest(), zone.state_digest());
+        tick
+    }
+
+    fn seed_instance(zone: &ZoneState, template: u32) -> Option<ItemInstanceId> {
+        zone.phase4.as_ref().unwrap().canonical.players[&id(P1)]
+            .inventory
+            .values()
+            .find(|i| i.template_id == template)
+            .map(|i| i.id)
+    }
+
+    /// Run ticks until `skill`'s cast result for P1 lands; the result's outcome per target.
+    fn until_result(zone: &mut ZoneState, skill: u32) -> Vec<SkillOutcome> {
+        for _ in 0..80 {
+            let tick = step(zone, Vec::new());
+            for event in &tick.events {
+                if let ZoneEvent::SkillCastResult {
+                    caster,
+                    skill: s,
+                    targets,
+                    ..
+                } = event
+                {
+                    if caster.entity == id(P1) && s.id.0 == skill {
+                        return targets.iter().map(|t| t.outcome).collect();
+                    }
+                }
+            }
+        }
+        panic!("no {skill} result in 80 ticks");
+    }
+
+    /// The `UseItem` -> cast -> impact path end to end (coordinator ask for 3.6): a
+    /// count-1 seed stack is consumed at the Sow impact while its item-cast lane is still
+    /// open, every tick restores (lane validation), and the Harvester cast harvests.
+    #[test]
+    fn seed_and_harvester_run_through_use_item_cast_and_impact() {
+        let (mut zone, npc) = zone_with(1);
+        // Next to the player, in its AOI.
+        let here = zone.entities[&id(P1)].pos;
+        let from = zone.entities[&npc].pos;
+        let body = zone.entities.get_mut(&npc).unwrap();
+        body.pos = here;
+        body.ai.as_mut().unwrap().home = here;
+        zone.aoi.relocate(npc, from, here);
+        let mut key = 500;
+        let mut seq = 1;
+        let mut sown = false;
+        for _ in 0..6 {
+            let seed = seed_instance(&zone, SEED).unwrap_or_else(|| {
+                // Another 1-stack for the retry.
+                let items = zone.phase4.as_mut().unwrap();
+                let new = items.canonical.allocator.allocate().unwrap();
+                let player = items.canonical.players.get_mut(&id(P1)).unwrap();
+                let mut item = player.inventory.values().next().unwrap().clone();
+                item.id = new;
+                item.template_id = SEED;
+                item.count = 1;
+                item.location = ItemLocation::Inventory;
+                item.slot = None;
+                item.enchant = 0;
+                item.augment_id = None;
+                item.charges = 0;
+                player.inventory.insert(new, item);
+                let rules = std::sync::Arc::clone(&items.rules);
+                let player = items.canonical.players.get_mut(&id(P1)).unwrap();
+                player.weight = inventory_totals(&player.inventory, &rules).unwrap().2;
+                new
+            });
+            let input = use_input(&zone, key, seq, seed, npc);
+            let tick = step(&mut zone, vec![input]);
+            key += 1;
+            seq += 1;
+            assert!(tick.dispositions.is_empty(), "use refused: {:?}", tick.dispositions);
+            assert_eq!(
+                zone.phase5.as_ref().unwrap().canonical.npcs[&npc]
+                    .seed
+                    .map(|b| b.seeder),
+                Some(id(P1)),
+                "bound once the Sowing cast started"
+            );
+            let outcomes = until_result(&mut zone, 2097);
+            assert_eq!(seed_instance(&zone, SEED), None, "the last seed is consumed at impact");
+            assert!(
+                zone.phase4
+                    .as_ref()
+                    .unwrap()
+                    .canonical
+                    .item_casts
+                    .is_empty(),
+                "lane closed"
+            );
+            if outcomes == vec![SkillOutcome::Hit] {
+                sown = true;
+                break;
+            }
+            // Reuse 10 s.
+            for _ in 0..101 {
+                step(&mut zone, Vec::new());
+            }
+        }
+        assert!(sown, "sown in 6 tries at basic 70");
+        let (crop, count) = zone.phase5.as_ref().unwrap().canonical.npcs[&npc]
+            .harvest
+            .unwrap();
+        // Kill it through real combat (the engine death path; seeded: corpse 7 + 10 s),
+        // then harvest through the Harvester.
+        zone.entities
+            .get_mut(&npc)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .hp = 1;
+        let session = |seq: u32, command| {
+            crate::domain::zone::ZoneInput::session(
+                id(P1),
+                crate::domain::zone::SessionGeneration(1),
+                seq,
+                command,
+            )
+        };
+        let attack = step(
+            &mut zone,
+            vec![
+                session(
+                    seq,
+                    crate::domain::zone::ZoneCommand::SetTarget {
+                        entity: id(P1),
+                        target: Some(npc),
+                    },
+                ),
+                session(seq + 1, crate::domain::zone::ZoneCommand::Attack { entity: id(P1) }),
+            ],
+        );
+        assert!(attack.dispositions.is_empty(), "{:?}", attack.dispositions);
+        seq += 2;
+        for _ in 0..200 {
+            if zone.entities[&npc].targeting.dead {
+                break;
+            }
+            step(&mut zone, Vec::new());
+        }
+        assert!(zone.entities[&npc].targeting.dead, "killed");
+        assert!(zone.phase5.as_ref().unwrap().canonical.npcs[&npc].seeded);
+        let items = zone.phase4.as_mut().unwrap();
+        let harvester = items.canonical.allocator.allocate().unwrap();
+        let player = items.canonical.players.get_mut(&id(P1)).unwrap();
+        let mut item = player.inventory.values().next().unwrap().clone();
+        item.id = harvester;
+        item.template_id = 5125;
+        item.count = 1;
+        item.location = ItemLocation::Inventory;
+        item.slot = None;
+        item.enchant = 0;
+        item.augment_id = None;
+        item.charges = 0;
+        player.inventory.insert(harvester, item);
+        let rules = std::sync::Arc::clone(&items.rules);
+        let player = items.canonical.players.get_mut(&id(P1)).unwrap();
+        player.weight = inventory_totals(&player.inventory, &rules).unwrap().2;
+        let input = use_input(&zone, key, seq, harvester, npc);
+        let tick = step(&mut zone, vec![input]);
+        assert!(tick.dispositions.is_empty(), "harvester refused: {:?}", tick.dispositions);
+        let outcomes = until_result(&mut zone, 2098);
+        assert_eq!(outcomes, vec![SkillOutcome::Hit], "basic 100 at equal levels");
+        assert_eq!(held(&zone, crop), count);
+        assert_eq!(held(&zone, 5125), 1, "the harvester is not consumed");
+        assert!(zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .item_casts
+            .is_empty());
     }
 
     fn held(zone: &ZoneState, template: u32) -> u64 {
@@ -684,8 +920,11 @@ mod flow_tests {
     fn seed_sow_and_harvest_follow_the_pinned_order() {
         let (mut zone, npc) = zone();
         zone.seed_use_v7(id(P1), SEED, Some(npc)).unwrap();
-        assert_eq!(zone.seed_use_v7(id(P1), SEED, Some(npc)), Err(RejectReason::NotSeedable));
+        // Another castle's seed is refused; an unsown binding is replaced (pinned).
         assert_eq!(zone.seed_use_v7(id(P1), 5024, Some(npc)), Err(RejectReason::NotSeedable));
+        zone.seed_bind_v7(id(P2_SEEDER), SEED, npc);
+        zone.seed_use_v7(id(P1), SEED, Some(npc)).unwrap();
+        zone.seed_bind_v7(id(P1), SEED, npc);
         let caster = zone.binding(id(P1)).unwrap();
         let target = zone.binding(npc).unwrap();
         let tick = zone.next_tick;
@@ -705,7 +944,9 @@ mod flow_tests {
         assert!(sidecar.seeded);
         let (crop, count) = sidecar.harvest.unwrap();
         assert_eq!(crop, 5073);
-        // Seeded: a second Sow is refused by the guard without consuming a seed.
+        // Seeded: the Seed handler refuses, and a second Sow fails its guard without
+        // consuming a seed.
+        assert_eq!(zone.seed_use_v7(id(P1), SEED, Some(npc)), Err(RejectReason::NotSeedable));
         let before = held(&zone, SEED);
         let mut events = Vec::new();
         assert_eq!(

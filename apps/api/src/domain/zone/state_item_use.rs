@@ -438,6 +438,12 @@ impl ZoneState {
                 events,
             )?;
         }
+        // V7 Seed handler: `setSeeded(seed, player)` once its Sowing cast has started.
+        if plan.definition.handler == "Seed" {
+            if let Some(target) = timing.target {
+                self.seed_bind_v7(id, plan.definition.template_id, target.entity);
+            }
+        }
         self.rebuild_v5(id).map_err(|_| RejectReason::InvalidLoad)?;
         if let Some(inputs) = consumable {
             self.consumable_use_stage_v6(id, tick, &format!("use:{}", reference.key), inputs);

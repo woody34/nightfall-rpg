@@ -809,7 +809,13 @@ impl Phase5Rules {
                     capability.admitted = true;
                 }
             }
-            self.v7_items = Some(Arc::new(items.with_capabilities(capabilities)));
+            let skills: Vec<(u32, u32)> = promoted
+                .iter()
+                .copied()
+                .chain(added.iter().map(|s| s.id))
+                .filter_map(|id| view.get(id).map(|s| (id.0, s.max_level)))
+                .collect();
+            self.v7_items = Some(Arc::new(items.with_capabilities(capabilities, &skills)));
         }
         self.v7_skills = Some(Arc::new(phase3.with_v7_registry(view)));
         Ok(())
@@ -2130,14 +2136,22 @@ impl Phase5RulesParts {
         let mut previous = 0;
         for row in &table.additions {
             let id = row.skill.id.0;
+            // A clean addition (P5-D19 herbs): already executable in the V6 grammar, with no
+            // blockers and empty `clears`; otherwise a deferred row clearing exactly its own
+            // blockers, all implemented.
+            let clean = row.clears.is_empty()
+                && row.skill.blockers.is_empty()
+                && row.skill.runtime_status == crate::domain::class::RuntimeSkillStatus::Executable;
+            let deferred = clears_ok(&row.clears)
+                && row.skill.runtime_status == crate::domain::class::RuntimeSkillStatus::Deferred
+                && row.skill.blockers == row.clears;
+            let mut shape = Vec::new();
+            super::skill::validate_skill_shape_revision(&row.skill, &mut shape, true);
             ensure(
-                id > previous
-                    && ids.insert(id)
-                    && clears_ok(&row.clears)
-                    && row.skill.runtime_status
-                        == crate::domain::class::RuntimeSkillStatus::Deferred
-                    && row.skill.blockers == row.clears,
-                || format!("skill_promotions: addition {id} out of order or unimplemented"),
+                id > previous && ids.insert(id) && (clean || deferred) && shape.is_empty(),
+                || {
+                    format!("skill_promotions: addition {id} out of order, unimplemented or malformed {shape:?}")
+                },
             )?;
             previous = id;
         }
