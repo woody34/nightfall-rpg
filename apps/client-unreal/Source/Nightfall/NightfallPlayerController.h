@@ -16,6 +16,10 @@ class UNightfallRecipeDialog;
 class UNightfallTradeDialog;
 class UNightfallStoreSetupDialog;
 class UNightfallStoreVisitDialog;
+class UNightfallKeeperDialog;
+class UNightfallMailDialog;
+class UNightfallAuctionDialog;
+class UNightfallManorDialog;
 class AClassMasterActor;
 
 /**
@@ -78,6 +82,11 @@ public:
 	void OpenTradeDialog();
 	void OpenStoreSetupDialog();
 	void OpenStoreVisitDialog();
+	/** Story 5.5: H the target warehouse keeper, M mail, Y the target auctioneer, N the target manor manager. */
+	void OpenKeeperDialog();
+	void OpenMailDialog();
+	void OpenAuctionDialog();
+	void OpenManorDialog();
 	/** Production mouse-hit resolver and key-binding setup, also exercised headlessly. */
 	bool ClickEntityProxy(const FString& EntityId);
 	void BindSkillKeys();
@@ -98,6 +107,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UNightfallTradeDialog> TradeDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallStoreSetupDialog> StoreSetupDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallStoreVisitDialog> StoreVisitDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallKeeperDialog> KeeperDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallMailDialog> MailDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallAuctionDialog> AuctionDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallManorDialog> ManorDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallRecipeDialog> RecipeDialog;
 	void ShowClassMaster();
 	void LoadClassCatalogue();

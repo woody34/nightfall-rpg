@@ -97,6 +97,11 @@ void ANightfallPlayerController::BindSkillKeys()
  InputComponent->BindKey(EKeys::T,IE_Pressed,this,&ANightfallPlayerController::OpenTradeDialog);
  InputComponent->BindKey(EKeys::P,IE_Pressed,this,&ANightfallPlayerController::OpenStoreSetupDialog);
  InputComponent->BindKey(EKeys::B,IE_Pressed,this,&ANightfallPlayerController::OpenStoreVisitDialog);
+ // Story 5.5: H the warehouse keeper, M mail, Y the auctioneer, N the manor manager.
+ InputComponent->BindKey(EKeys::H,IE_Pressed,this,&ANightfallPlayerController::OpenKeeperDialog);
+ InputComponent->BindKey(EKeys::M,IE_Pressed,this,&ANightfallPlayerController::OpenMailDialog);
+ InputComponent->BindKey(EKeys::Y,IE_Pressed,this,&ANightfallPlayerController::OpenAuctionDialog);
+ InputComponent->BindKey(EKeys::N,IE_Pressed,this,&ANightfallPlayerController::OpenManorDialog);
 
 }
 
@@ -282,6 +287,30 @@ void ANightfallPlayerController::OpenStoreVisitDialog()
  auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
  if(!StoreVisitDialog)StoreVisitDialog=CreateWidget<UNightfallStoreVisitDialog>(this);
  if(StoreVisitDialog){if(!StoreVisitDialog->IsInViewport())StoreVisitDialog->AddToViewport(55);StoreVisitDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId());StoreVisitDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenKeeperDialog()
+{
+ auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
+ if(!KeeperDialog)KeeperDialog=CreateWidget<UNightfallKeeperDialog>(this);
+ if(KeeperDialog){if(!KeeperDialog->IsInViewport())KeeperDialog->AddToViewport(55);KeeperDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId());KeeperDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenMailDialog()
+{
+ auto* GI=GetGameInstance();if(!GI)return;
+ if(!MailDialog)MailDialog=CreateWidget<UNightfallMailDialog>(this);
+ if(MailDialog){if(!MailDialog->IsInViewport())MailDialog->AddToViewport(55);MailDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>());MailDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenAuctionDialog()
+{
+ auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
+ if(!AuctionDialog)AuctionDialog=CreateWidget<UNightfallAuctionDialog>(this);
+ if(AuctionDialog){if(!AuctionDialog->IsInViewport())AuctionDialog->AddToViewport(55);AuctionDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId(),0);AuctionDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenManorDialog()
+{
+ auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
+ if(!ManorDialog)ManorDialog=CreateWidget<UNightfallManorDialog>(this);
+ if(ManorDialog){if(!ManorDialog->IsInViewport())ManorDialog->AddToViewport(55);ManorDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId(),1);ManorDialog->ActivateWidget();}
 }
 void ANightfallPlayerController::OpenInventoryDialog()
 {

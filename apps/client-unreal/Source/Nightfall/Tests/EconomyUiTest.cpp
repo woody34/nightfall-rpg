@@ -114,11 +114,14 @@ bool FEconomyMultisellUiTest::RunTest(const FString&)
  Type(D->AmountControl(), TEXT("2")); D->ConfirmControl()->OnClicked.Broadcast();
  if (!TestEqual(TEXT("one intent"), S.Socket->Sent.Num(), 1)) return false;
  const FGrpcNightfallV1ClientMessage First = S.Last();
- TestTrue(TEXT("multisell body"), First.Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::MultisellChoose && First.Intent.MultisellChoose.Npc == FString(Merchant).ToLower() && First.Intent.MultisellChoose.ListId.Value == 9001 && First.Intent.MultisellChoose.EntryId.Value == 2 && First.Intent.MultisellChoose.Amount.Value == 2);
+ TestTrue(TEXT("multisell body"), First.Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::MultisellChoose && First.Intent.MultisellChoose.Npc == FString(Merchant).ToLower() && First.Intent.MultisellChoose.ListId.Value == 9001 && First.Intent.MultisellChoose.EntryId.Value == 200000 && First.Intent.MultisellChoose.Amount.Value == 2);
  TestEqual(TEXT("dialog key"), First.Intent.MultisellChoose.IdempotencyKey, D->RetryKey());
  S.Reject(First.Seq.Value); D->RetryControl()->OnClicked.Broadcast(); const FGrpcNightfallV1ClientMessage Second = S.Last();
  TestEqual(TEXT("retry resends the frozen body"), Second.Intent.MultisellChoose.ToJsonString(false), First.Intent.MultisellChoose.ToJsonString(false));
  S.Reject(Second.Seq.Value);
+ // A maintained list takes the kept enchant: the prepared id is entry x 100000 + enchant (Z lane 3.7).
+ Type(D->EnchantControl(), TEXT("3")); D->ConfirmControl()->OnClicked.Broadcast();
+ TestEqual(TEXT("prepared entry id with the enchant"), S.Last().Intent.MultisellChoose.EntryId.Value, 200003u); S.Reject(S.Last().Seq.Value);
  // Another typed list is requested once.
  Type(D->ListControl(), TEXT("9002")); TestEqual(TEXT("a typed list id is requested"), Asked.Last(), 9002u);
  S.Net->Disconnect(); return true;
@@ -284,6 +287,116 @@ bool FEconomyStoreVisitUiTest::RunTest(const FString&)
  TestTrue(TEXT("manufacture order body"), S.Last().Intent.IntentCase == I::PrivateManufactureOrder && S.Last().Intent.PrivateManufactureOrder.StoreOwner == FString(Seller).ToLower() && S.Last().Intent.PrivateManufactureOrder.RecipeId.Value == 322); S.Reject(S.Last().Seq.Value);
  // A closed store: nothing to confirm.
  Store(S, Seller, K::STORE_KIND_NONE, 44); TestFalse(TEXT("closed store"), D->ConfirmControl()->GetIsEnabled()); TestTrue(TEXT("waiting again"), D->StoreText().Contains(TEXT("Waiting")));
+ S.Net->Disconnect(); return true;
+}
+// Story 5.5: the warehouse keeper, mail, auction and manor dialogs over the read views.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEconomyKeeperUiTest, "Nightfall.Economy.UI.KeeperDepositWithdrawFreightBusyRetry", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FEconomyKeeperUiTest::RunTest(const FString&)
+{
+ using namespace EconomyUiTest; using I = EGrpcNightfallV1ClientMessageIntent; FScope S; int32 Warehouse = 0, Freight = 0;
+ auto Row = [](uint64 Id, uint32 Template, uint64 Count, EGrpcNightfallV1ItemLocation L) { FGrpcNightfallV1OwnedItem R; R.InstanceId = Id; R.TemplateId = Template; R.Count = Count; R.Location = L; return R; };
+ S.Economy->SetWarehouseProviderForTesting([&](const FGrpcNightfallV1GetWarehouseRequest&, USessionClient::FGetWarehouseCallback Cb) { ++Warehouse; FGrpcNightfallV1GetWarehouseResponse R; R.Capacity = 100; R.Items.Add(Row(80, 1864, 5, EGrpcNightfallV1ItemLocation::ITEM_LOCATION_WAREHOUSE)); Cb({}, R); });
+ S.Economy->SetFreightProviderForTesting([&](const FGrpcNightfallV1GetFreightRequest&, USessionClient::FGetFreightCallback Cb) { ++Freight; FGrpcNightfallV1GetFreightResponse R; R.Capacity = 200; R.Items.Add(Row(81, 20678, 1, EGrpcNightfallV1ItemLocation::ITEM_LOCATION_FREIGHT)); Cb({}, R); });
+ auto* D = NewObject<UNightfallKeeperDialog>(S.Scope.GameInstance); D->BindState(S.Economy, S.Items, Merchant);
+ TestTrue(TEXT("both views asked"), Warehouse == 1 && Freight == 1);
+ TestTrue(TEXT("received capacities"), D->StatusText().Contains(TEXT("capacity 100")) && D->StatusText().Contains(TEXT("capacity 200")));
+ D->EntryControl()->SetSelectedIndex(0); Type(D->CountControl(), TEXT("4")); D->ConfirmControl()->OnClicked.Broadcast();
+ if (!TestEqual(TEXT("one intent"), S.Socket->Sent.Num(), 1)) return false;
+ const FGrpcNightfallV1ClientMessage Deposit = S.Last();
+ TestTrue(TEXT("deposit body"), Deposit.Intent.IntentCase == I::WarehouseDeposit && Deposit.Intent.WarehouseDeposit.Keeper == FString(Merchant).ToLower() && Deposit.Intent.WarehouseDeposit.Entries.Num() == 1 && Deposit.Intent.WarehouseDeposit.Entries[0].InstanceId.Value == 1 && Deposit.Intent.WarehouseDeposit.Entries[0].Count.Value == 4);
+ // CONTAINER_BUSY: the notice names the retry; Retry sends the same key and body.
+ S.Reject(Deposit.Seq.Value);
+ TestTrue(TEXT("busy notice"), D->StatusText().Contains(TEXT("CONTAINER_BUSY")) && D->StatusText().Contains(TEXT("same key")));
+ D->RetryControl()->OnClicked.Broadcast(); const FGrpcNightfallV1ClientMessage Again = S.Last();
+ TestEqual(TEXT("busy retry keeps the frozen body"), Again.Intent.WarehouseDeposit.ToJsonString(false), Deposit.Intent.WarehouseDeposit.ToJsonString(false));
+ TestFalse(TEXT("no notice while the retry is outstanding"), D->StatusText().Contains(TEXT("CONTAINER_BUSY")));
+ { FServerMessage M; M.Rejected = FIntentRejected{ Again.Seq.Value, uint32(EGrpcNightfallV1RejectReason::REJECT_REASON_INVALID), TEXT("invalid") }; S.Net->DispatchServerMessage(M); }
+ TestFalse(TEXT("another rejection clears the notice"), D->StatusText().Contains(TEXT("CONTAINER_BUSY")));
+ // Withdraw names a received warehouse row; freight send names the target character.
+ D->TabControl()->SetSelectedOption(TEXT("Withdraw")); TestEqual(TEXT("warehouse rows offered"), D->EntryControl()->GetOptionCount(), 1);
+ Type(D->CountControl(), TEXT("5")); D->ConfirmControl()->OnClicked.Broadcast();
+ TestTrue(TEXT("withdraw body"), S.Last().Intent.IntentCase == I::WarehouseWithdraw && S.Last().Intent.WarehouseWithdraw.Entries[0].InstanceId.Value == 80 && S.Last().Intent.WarehouseWithdraw.Entries[0].Count.Value == 5); S.Reject(S.Last().Seq.Value);
+ D->TabControl()->SetSelectedOption(TEXT("Freight send")); Type(D->CountControl(), TEXT("1")); TestFalse(TEXT("freight send needs a target"), D->ConfirmControl()->GetIsEnabled());
+ Type(D->TargetControl(), Seller); D->ConfirmControl()->OnClicked.Broadcast();
+ TestTrue(TEXT("freight send body"), S.Last().Intent.IntentCase == I::FreightSend && S.Last().Intent.FreightSend.TargetCharacter == FString(Seller).ToLower()); S.Reject(S.Last().Seq.Value);
+ D->TabControl()->SetSelectedOption(TEXT("Freight withdraw")); D->ConfirmControl()->OnClicked.Broadcast();
+ TestTrue(TEXT("freight withdraw body"), S.Last().Intent.IntentCase == I::FreightWithdraw && S.Last().Intent.FreightWithdraw.Entries[0].InstanceId.Value == 81);
+ S.Net->Disconnect(); return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEconomyMailUiTest, "Nightfall.Economy.UI.MailReadTakeRejectCancelDeleteSend", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FEconomyMailUiTest::RunTest(const FString&)
+{
+ using namespace EconomyUiTest; using I = EGrpcNightfallV1ClientMessageIntent; FScope S; TArray<FString> Read;
+ const FString In = TEXT("aaaaaaaa-0000-4000-8000-000000000001"), Out = TEXT("aaaaaaaa-0000-4000-8000-000000000002");
+ S.Economy->SetMailProviderForTesting([&](const FGrpcNightfallV1ListMailRequest& Q, USessionClient::FListMailCallback Cb) {
+  FGrpcNightfallV1ListMailResponse R; R.Count = 1; R.Limit = 240; FGrpcNightfallV1MailHeader H; H.Subject = Q.MailBox == EGrpcNightfallV1MailBox::MAIL_BOX_INBOX ? TEXT("Pay me") : TEXT("Gift");
+  H.MessageId = Q.MailBox == EGrpcNightfallV1MailBox::MAIL_BOX_INBOX ? In : Out; H.SenderName = TEXT("Bob"); H.ReceiverName = TEXT("Ann"); H.CodAdena = Q.MailBox == EGrpcNightfallV1MailBox::MAIL_BOX_INBOX ? 100 : 0; H.HasAttachments = true; R.Messages.Add(H); Cb({}, R); });
+ S.Economy->SetReadMailProviderForTesting([&](const FGrpcNightfallV1ReadMailRequest& Q, USessionClient::FReadMailCallback Cb) {
+  Read.Add(Q.MessageId); FGrpcNightfallV1ReadMailResponse R; R.HasHeader = true; R.Header.Subject = TEXT("Pay me"); R.Body = TEXT("hello there"); FGrpcNightfallV1OwnedItem A; A.InstanceId = 90; A.TemplateId = 1666; A.Count = 1; R.Attachments.Add(A); Cb({}, R); });
+ auto* D = NewObject<UNightfallMailDialog>(S.Scope.GameInstance); D->BindState(S.Economy, S.Items);
+ TestTrue(TEXT("received inbox header with COD"), D->MessageControl()->GetSelectedOption().Contains(TEXT("[COD 100 adena]")) && D->MessageControl()->GetSelectedOption().Contains(TEXT("[attachments]")));
+ // Read is the ReadMail RPC: no intent.
+ D->ConfirmControl()->OnClicked.Broadcast(); TestEqual(TEXT("read sends no intent"), S.Socket->Sent.Num(), 0);
+ TestTrue(TEXT("ReadMail for the message"), Read.Num() == 1 && Read[0] == In); TestTrue(TEXT("received body and attachment"), D->ReadText().Contains(TEXT("hello there")) && D->ReadText().Contains(TEXT("x1")));
+ D->ActionControl()->SetSelectedOption(TEXT("Take attachments")); D->ConfirmControl()->OnClicked.Broadcast();
+ if (!TestEqual(TEXT("one intent"), S.Socket->Sent.Num(), 1)) return false;
+ const FGrpcNightfallV1ClientMessage Take = S.Last();
+ TestTrue(TEXT("take body"), Take.Intent.IntentCase == I::MailTakeAttachments && Take.Intent.MailTakeAttachments.MessageId == In);
+ S.Reject(Take.Seq.Value); D->RetryControl()->OnClicked.Broadcast(); TestEqual(TEXT("take retry keeps the key"), S.Last().Intent.MailTakeAttachments.IdempotencyKey, Take.Intent.MailTakeAttachments.IdempotencyKey); S.Reject(S.Last().Seq.Value);
+ for (const TCHAR* A : {TEXT("Reject"), TEXT("Mark read"), TEXT("Delete")}) { D->ActionControl()->SetSelectedOption(A); D->ConfirmControl()->OnClicked.Broadcast(); S.Reject(S.Last().Seq.Value); }
+ TestTrue(TEXT("delete from the inbox"), S.Last().Intent.IntentCase == I::MailDelete && S.Last().Intent.MailDelete.MessageIds.Num() == 1 && !S.Last().Intent.MailDelete.SentBox);
+ D->BoxControl()->SetSelectedOption(TEXT("Sent")); D->ActionControl()->SetSelectedOption(TEXT("Cancel")); D->ConfirmControl()->OnClicked.Broadcast();
+ TestTrue(TEXT("cancel a sent mail"), S.Last().Intent.IntentCase == I::MailCancel && S.Last().Intent.MailCancel.MessageId == Out); S.Reject(S.Last().Seq.Value);
+ // Write: receiver, subject, text, COD and one attachment.
+ D->BoxControl()->SetSelectedOption(TEXT("Write")); TestFalse(TEXT("no receiver yet"), D->ConfirmControl()->GetIsEnabled());
+ Type(D->ReceiverControl(), TEXT("Bob")); Type(D->SubjectControl(), TEXT("Cod")); Type(D->BodyControl(), TEXT("pay")); Type(D->CodControl(), TEXT("500"));
+ D->AttachmentControl()->SetSelectedIndex(0); Type(D->CountControl(), TEXT("2")); D->AttachControl()->OnClicked.Broadcast();
+ D->ConfirmControl()->OnClicked.Broadcast(); const FGrpcNightfallV1ClientMessage Send = S.Last();
+ TestTrue(TEXT("mail send body"), Send.Intent.IntentCase == I::MailSend && Send.Intent.MailSend.ReceiverName == TEXT("Bob") && Send.Intent.MailSend.CodAdena.Value == 500 && Send.Intent.MailSend.Attachments.Num() == 1 && Send.Intent.MailSend.Attachments[0].Count.Value == 2);
+ S.Net->Disconnect(); return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEconomyAuctionUiTest, "Nightfall.Economy.UI.AuctionBidAndCancel", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FEconomyAuctionUiTest::RunTest(const FString&)
+{
+ using namespace EconomyUiTest; using I = EGrpcNightfallV1ClientMessageIntent; FScope S; TArray<uint32> Asked;
+ S.Economy->SetAuctionsProviderForTesting([&](const FGrpcNightfallV1ListItemAuctionsRequest& Q, USessionClient::FListItemAuctionsCallback Cb) {
+  Asked.Add(Q.InstanceNpcId.Value); FGrpcNightfallV1ListItemAuctionsResponse R; R.HasCurrent = true; R.Current.AuctionId = 1; R.Current.State = EGrpcNightfallV1AuctionState::AUCTION_STATE_STARTED; R.Current.TemplateId = 1864; R.Current.Count = 1; R.Current.InitBid = 100000; R.Current.HighestBid = 150000; R.Current.OwnBid = 120000;
+  FGrpcNightfallV1AuctionView Own = R.Current; R.OwnBids.Add(Own); Cb({}, R); });
+ auto* D = NewObject<UNightfallAuctionDialog>(S.Scope.GameInstance); D->BindState(S.Economy, S.Items, Merchant, 32320);
+ TestTrue(TEXT("ListItemAuctions for the instance"), Asked.Num() == 1 && Asked[0] == 32320u);
+ TestTrue(TEXT("received bids"), D->AuctionText().Contains(TEXT("highest 150000")) && D->AuctionText().Contains(TEXT("your bid 120000")) && D->AuctionText().Contains(TEXT("started")));
+ Type(D->BidControl(), TEXT("160000")); D->ConfirmControl()->OnClicked.Broadcast();
+ if (!TestEqual(TEXT("one intent"), S.Socket->Sent.Num(), 1)) return false;
+ const FGrpcNightfallV1ClientMessage Bid = S.Last();
+ TestTrue(TEXT("bid body"), Bid.Intent.IntentCase == I::ItemAuctionBid && Bid.Intent.ItemAuctionBid.InstanceNpcId.Value == 32320 && Bid.Intent.ItemAuctionBid.Bid.Value == 160000);
+ S.Reject(Bid.Seq.Value); D->RetryControl()->OnClicked.Broadcast(); TestEqual(TEXT("bid retry keeps the frozen body"), S.Last().Intent.ItemAuctionBid.ToJsonString(false), Bid.Intent.ItemAuctionBid.ToJsonString(false)); S.Reject(S.Last().Seq.Value);
+ D->ActionControl()->SetSelectedOption(TEXT("Cancel bid")); D->ConfirmControl()->OnClicked.Broadcast();
+ TestTrue(TEXT("cancel bid body"), S.Last().Intent.IntentCase == I::ItemAuctionCancelBid && S.Last().Intent.ItemAuctionCancelBid.Auctioneer == FString(Merchant).ToLower() && S.Last().Intent.ItemAuctionCancelBid.InstanceNpcId.Value == 32320);
+ S.Net->Disconnect(); return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEconomyManorUiTest, "Nightfall.Economy.UI.ManorBuySeedSellCrop", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FEconomyManorUiTest::RunTest(const FString&)
+{
+ using namespace EconomyUiTest; using I = EGrpcNightfallV1ClientMessageIntent; FScope S; TArray<uint32> Asked;
+ S.Economy->SetManorProviderForTesting([&](const FGrpcNightfallV1GetManorDataRequest& Q, USessionClient::FGetManorDataCallback Cb) {
+  Asked.Add(Q.CastleId.Value); FGrpcNightfallV1GetManorDataResponse R; R.CastleId = Q.CastleId;
+  FGrpcNightfallV1SeedProductionView Seed; Seed.SeedId = 5016; Seed.Price = 100; Seed.StartAmount = 100; Seed.Amount = 50; R.Seeds.Add(Seed);
+  FGrpcNightfallV1CropProcureView Crop; Crop.CropId = 1864; Crop.Price = 300; Crop.StartAmount = 20; Crop.Amount = 20; Crop.RewardType = 1; R.Crops.Add(Crop); Cb({}, R); });
+ auto* D = NewObject<UNightfallManorDialog>(S.Scope.GameInstance); D->BindState(S.Economy, S.Items, Merchant, 1);
+ TestTrue(TEXT("GetManorData for castle 1"), Asked.Num() == 1 && Asked[0] == 1u);
+ TestTrue(TEXT("received seed price and amount"), D->EntryControl()->GetSelectedOption().Contains(TEXT("100 adena each, 50/100 left")));
+ Type(D->CountControl(), TEXT("3")); D->ConfirmControl()->OnClicked.Broadcast();
+ if (!TestEqual(TEXT("one intent"), S.Socket->Sent.Num(), 1)) return false;
+ const FGrpcNightfallV1ClientMessage Buy = S.Last();
+ TestTrue(TEXT("buy seed body"), Buy.Intent.IntentCase == I::ManorBuySeed && Buy.Intent.ManorBuySeed.Manager == FString(Merchant).ToLower() && Buy.Intent.ManorBuySeed.ManorId.Value == 1 && Buy.Intent.ManorBuySeed.Seeds.Num() == 1 && Buy.Intent.ManorBuySeed.Seeds[0].TemplateId.Value == 5016 && Buy.Intent.ManorBuySeed.Seeds[0].Count.Value == 3);
+ S.Reject(Buy.Seq.Value);
+ D->ActionControl()->SetSelectedOption(TEXT("Sell crop")); TestEqual(TEXT("only owned instances of the crop"), D->ItemControl()->GetOptionCount(), 1);
+ Type(D->CountControl(), TEXT("2")); D->ConfirmControl()->OnClicked.Broadcast();
+ const FGrpcNightfallV1ClientMessage Sell = S.Last();
+ TestTrue(TEXT("sell crop body"), Sell.Intent.IntentCase == I::ManorSellCrop && Sell.Intent.ManorSellCrop.Entries.Num() == 1 && Sell.Intent.ManorSellCrop.Entries[0].InstanceId.Value == 1 && Sell.Intent.ManorSellCrop.Entries[0].CropId.Value == 1864 && Sell.Intent.ManorSellCrop.Entries[0].ManorId.Value == 1 && Sell.Intent.ManorSellCrop.Entries[0].Count.Value == 2);
  S.Net->Disconnect(); return true;
 }
 #endif

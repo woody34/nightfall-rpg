@@ -91,6 +91,8 @@ public:
 	using FListMailCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListMailResponse&)>;
 	using FListItemAuctionsCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListItemAuctionsResponse&)>;
 	using FGetMultisellListCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetMultisellListResponse&)>;
+	using FReadMailCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ReadMailResponse&)>;
+	using FGetManorDataCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetManorDataResponse&)>;
 	using FGetRecipeBookCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetRecipeBookResponse&)>;
 	using FPlayTicketCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1IssuePlayTicketResponse&)>;
 
@@ -107,6 +109,10 @@ public:
 	void ListMail(const FGrpcNightfallV1ListMailRequest& Request, FListMailCallback Callback);
 	void ListItemAuctions(const FGrpcNightfallV1ListItemAuctionsRequest& Request, FListItemAuctionsCallback Callback);
 	void GetMultisellList(const FGrpcNightfallV1GetMultisellListRequest& Request, FGetMultisellListCallback Callback);
+	/** Story 5.5: one received mail (body and, in a peace square, its attachments); writes nothing. */
+	void ReadMail(const FGrpcNightfallV1ReadMailRequest& Request, FReadMailCallback Callback);
+	/** Story 5.5: the manor seed production and crop procurement of a castle. */
+	void GetManorData(const FGrpcNightfallV1GetManorDataRequest& Request, FGetManorDataCallback Callback);
 	void GetRecipeBook(const FGrpcNightfallV1GetRecipeBookRequest& Request, FGetRecipeBookCallback Callback);
 	void Ping(FPingCallback Callback);
 	void ListClasses(FCatalogueCallback Callback);
@@ -204,6 +210,10 @@ private:
 	TMap<uint32, FListItemAuctionsCallback> PendingListItemAuctions;
 	UFUNCTION() void HandleGetMultisellList(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetMultisellListResponse& Response);
 	TMap<uint32, FGetMultisellListCallback> PendingGetMultisellList;
+	UFUNCTION() void HandleReadMail(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ReadMailResponse& Response);
+	TMap<uint32, FReadMailCallback> PendingReadMail;
+	UFUNCTION() void HandleGetManorData(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetManorDataResponse& Response);
+	TMap<uint32, FGetManorDataCallback> PendingGetManorData;
 	UFUNCTION() void HandleGetRecipeBook(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetRecipeBookResponse& Response);
 	TMap<uint32, FGetRecipeBookCallback> PendingGetRecipeBook;
 	UPROPERTY()

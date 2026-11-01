@@ -106,6 +106,8 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	Client->OnListMailResponse.AddDynamic(this, &USessionClient::HandleListMail);
 	Client->OnListItemAuctionsResponse.AddDynamic(this, &USessionClient::HandleListItemAuctions);
 	Client->OnGetMultisellListResponse.AddDynamic(this, &USessionClient::HandleGetMultisellList);
+	Client->OnReadMailResponse.AddDynamic(this, &USessionClient::HandleReadMail);
+	Client->OnGetManorDataResponse.AddDynamic(this, &USessionClient::HandleGetManorData);
 	Client->OnGetRecipeBookResponse.AddDynamic(this, &USessionClient::HandleGetRecipeBook);
 	Client->OnGetSkillCatalogResponse.AddDynamic(this, &USessionClient::HandleGetSkillCatalog);
 	Client->OnListClassesResponse.AddDynamic(this, &USessionClient::HandleListClasses);
@@ -471,6 +473,28 @@ void USessionClient::GetMultisellList(const FGrpcNightfallV1GetMultisellListRequ
 void USessionClient::HandleGetMultisellList(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetMultisellListResponse& Response)
 {
  Complete(PendingGetMultisellList, Handle.Value, Result, Response);
+}
+void USessionClient::ReadMail(const FGrpcNightfallV1ReadMailRequest& Request, FReadMailCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitReadMail();
+ PendingReadMail.Add(Handle.Value, MoveTemp(Callback));
+ Client->ReadMail(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleReadMail(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ReadMailResponse& Response)
+{
+ Complete(PendingReadMail, Handle.Value, Result, Response);
+}
+void USessionClient::GetManorData(const FGrpcNightfallV1GetManorDataRequest& Request, FGetManorDataCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetManorData();
+ PendingGetManorData.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetManorData(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetManorData(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetManorDataResponse& Response)
+{
+ Complete(PendingGetManorData, Handle.Value, Result, Response);
 }
 
 void USessionClient::GetRecipeBook(const FGrpcNightfallV1GetRecipeBookRequest& Request, FGetRecipeBookCallback Callback)

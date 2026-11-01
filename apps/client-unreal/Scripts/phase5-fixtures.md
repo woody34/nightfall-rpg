@@ -108,7 +108,7 @@ files and this table together.
 |---------|-----------|---------|
 | `nf.PickUp` | `template:<id>` (the nearest received ground item of that template) or `nearest` | EntityDespawn + EconomyResult(pickup) |
 | `nf.Buy` / `nf.Sell` / `nf.Refund` | `<vendor> <list_id> <template|template:<id>> <count>`; `Refund <vendor> <list_id> <index>`. `<vendor>` is `merchant` or `restock_merchant` (P5-D29). | EconomyResult(vendor) |
-| `nf.Multisell` | `exchanger <list_id> <entry_index> <amount> [enchant:<n>]` | EconomyResult(multisell) |
+| `nf.Multisell` | `exchanger <list_id> <entry_index> <amount> [enchant:<n>]`. The bot sends the pinned PreparedEntry id `(entry_index + 1) × 100000 + n`. | EconomyResult(multisell) |
 | `nf.RegisterRecipe` / `nf.Craft` | `template:<recipe item>`; `Craft <recipe_id>` | RecipeBookSync / EconomyResult(recipe, craft) |
 | `nf.ManufactureOrder` | `<owner role> <recipe_id>` | EconomyResult(craft) for both |
 | `nf.TradeRequest` / `nf.TradeAnswer` / `nf.TradeAdd` / `nf.TradeConfirm` | `<role>`; `accept|decline`; `template:<id> <count>` | TradeRequestReceived / TradeSessionChanged |

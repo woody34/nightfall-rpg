@@ -1339,7 +1339,7 @@ The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtur
 - After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
 - `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
 
-## Economy (Phase 5, stories 5.1, 5.2, 5.3, 5.4 and 5.6 skeleton)
+## Economy (Phase 5, stories 5.1 to 5.5 and 5.6 skeleton)
 
 The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtures.md) and [phase5-grammar.py](Scripts/phase5-grammar.py). `Source/Nightfall/Bot/EconomyBotPredicates.cpp` registers every §5.3 command (41) and predicate (97; `rejected` is the Phase 1 builtin, and it resolves the Phase 5 reasons). `Scripts/test/phase5-client-registry.test.py` compares the two tables.
 
@@ -1360,7 +1360,15 @@ The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtur
   - **Store visit** (key B, for the target player): the received store of that player. Buy from a sell store (the received instance and price), buy a package store whole, sell an owned instance of the entry's template into a buy store (the received price), or order from a manufacture store.
 - The same request-key rules apply to these windows: an added or cleared entry makes a new key, and Retry resends the frozen request.
 - Story 5.4 tests: `Nightfall.Economy.UI.TradeRequestAnswerAddConfirmCancel`, `Nightfall.Economy.UI.PrivateStoreSetupSellBuyManufactureClose` and `Nightfall.Economy.UI.PrivateStoreVisitBuySellPackageOrder`.
-- The other dialogs and widgets are stories 5.5 and 5.7.
+- Story 5.5 adds four dialogs (same file):
+  - **Warehouse keeper** (key H, for the target keeper): Deposit, Withdraw, Freight send (to a character id of the same account) and Freight withdraw. The rows and the capacities come from `GetWarehouse` and `GetFreight`. The dialog asks for both views when it opens.
+  - **Mail** (key M): the inbox and the sent box from `ListMail`, with the received COD amount and the attachment, read and returned flags. Read is the `ReadMail` RPC: it sends no intent, and it shows the body and the attachments that the server sends. The actions are Take attachments, Reject, Mark read, Delete (inbox), Cancel and Delete (sent box), and Send (receiver, subject, text, COD and attachments).
+  - **Item auction** (key Y, for the target auctioneer): the current and next auction and the own bids from `ListItemAuctions` for one auctioneer instance. The actions are Bid and Cancel bid.
+  - **Manor manager** (key N, for the target manager): the seed production and the crop procurement of a castle from `GetManorData`. The actions are Buy seed and Sell crop (an owned instance of the crop).
+- CONTAINER_BUSY: when the server answers the frozen request with CONTAINER_BUSY, the dialog says so and tells the user that Retry sends the same request with the same key. A retry that is outstanding, a receipt or another rejection removes the notice.
+- Multisell: the dialog and `nf.Multisell` send the pinned PreparedEntry id (Z lane 3.7): the 1-based entry id of `GetMultisellList` × 100000, plus the kept enchant on a list that maintains the enchantment.
+- Story 5.5 tests: `Nightfall.Economy.UI.KeeperDepositWithdrawFreightBusyRetry`, `Nightfall.Economy.UI.MailReadTakeRejectCancelDeleteSend`, `Nightfall.Economy.UI.AuctionBidAndCancel` and `Nightfall.Economy.UI.ManorBuySeedSellCrop`.
+- The other widgets are story 5.7.
 
 Item content:
 

@@ -96,6 +96,7 @@ void UEconomyStateSubsystem::Reset()
  InstanceTemplates.Reset(); OwnInventoryTick = 0; AdenaIncrements.Reset(); LastAdena.Reset();
  BuylistView.Reset(); LastMerchant.Reset(); Sold.Reset(); WarehouseCounts.Reset(); FreightCounts.Reset(); WarehouseInstanceTemplates.Reset(); FreightInstanceTemplates.Reset(); bWarehouseKnown = bFreightKnown = false; FreightCapacityValue = 0;
  InboxView.Reset(); OutboxView.Reset(); MailSubjects.Reset(); AuctionsView.Reset(); LastAuctionNpc = 0; MultisellViews.Reset(); MultisellRequested.Reset(); ++ViewSerial;
+ WarehouseView.Reset(); FreightView.Reset(); MailBodies.Reset(); ManorView.Reset(); ManorCastle = 0; BusyNow.Reset();
  LastBuylistRequest = LastWarehouseRequest = LastFreightRequest = LastMailRequest = LastAuctionRequest = -1e9;
  OnChanged.Broadcast();
 }
@@ -200,7 +201,7 @@ void UEconomyStateSubsystem::ApplyEconomyReceipt(const FWorldEvent& E)
  if (!bVisible) return;
  // One receipt per receipt id: a replay (reconnect) compares bytes above but never counts twice.
  if (Results.ContainsByPredicate([&](const FReceipt& X) { return X.Result.ReceiptId == R.ReceiptId; })) return;
- Results.Add({ R, ++ReceiptOrder });
+ Results.Add({ R, ++ReceiptOrder }); BusyNow.Remove(Scope);
  using O = EGrpcNightfallV1ItemOperation;
  switch (R.Operation)
  {
@@ -231,7 +232,8 @@ void UEconomyStateSubsystem::ApplyEconomyReceipt(const FWorldEvent& E)
   }
   RefreshFreight(); break;
  case O::ITEM_OPERATION_FREIGHT_SEND: RefreshFreight(); break;
- case O::ITEM_OPERATION_MAIL_SEND: case O::ITEM_OPERATION_MAIL_TAKE: case O::ITEM_OPERATION_MAIL_REJECT: case O::ITEM_OPERATION_MAIL_CANCEL: case O::ITEM_OPERATION_MAIL_DELETE: case O::ITEM_OPERATION_MAIL_MARK_READ: RefreshMail(); break;
+ case O::ITEM_OPERATION_MAIL_SEND: case O::ITEM_OPERATION_MAIL_TAKE: case O::ITEM_OPERATION_MAIL_REJECT: case O::ITEM_OPERATION_MAIL_CANCEL: case O::ITEM_OPERATION_MAIL_DELETE: case O::ITEM_OPERATION_MAIL_MARK_READ: MailBodies.Reset(); RefreshMail(); break;
+ case O::ITEM_OPERATION_MANOR_BUY_SEED: case O::ITEM_OPERATION_MANOR_SELL_CROP: if (ManorCastle) OpenManor(ManorCastle); break;
  case O::ITEM_OPERATION_AUCTION_BID: case O::ITEM_OPERATION_AUCTION_CANCEL_BID: RefreshAuctions(); break;
  default: break;
  }
@@ -283,7 +285,7 @@ void UEconomyStateSubsystem::ApplyRejected(const FIntentRejected& R)
 {
  FSubmittedRequest* Found = SequenceRequests.Find(R.Seq); if (!Found || Found->Status != ERequestStatus::Pending) return;
  Found->Status = ERequestStatus::Rejected;
- if (R.Reason == uint32(EGrpcNightfallV1RejectReason::REJECT_REASON_CONTAINER_BUSY)) BusyScopes.Add(Found->Scope);
+ if (R.Reason == uint32(EGrpcNightfallV1RejectReason::REJECT_REASON_CONTAINER_BUSY)) { BusyScopes.Add(Found->Scope); BusyNow.Add(Found->Scope); } else BusyNow.Remove(Found->Scope);
  if (auto* Seqs = Outstanding.Find(Found->Scope)) { Seqs->Remove(R.Seq); if (Seqs->IsEmpty()) Outstanding.Remove(Found->Scope); }
  StatusText = R.Detail; OnChanged.Broadcast();
 }
@@ -396,13 +398,13 @@ void UEconomyStateSubsystem::ApplyWarehouse(const FGrpcNightfallV1GetWarehouseRe
 {
  WarehouseCounts.Reset(); WarehouseInstanceTemplates.Reset();
  for (const auto& I : R.Items) { WarehouseCounts.FindOrAdd(I.TemplateId.Value) += I.Count.Value; WarehouseInstanceTemplates.Add(I.InstanceId.Value, I.TemplateId.Value); }
- bWarehouseKnown = true; OnChanged.Broadcast();
+ WarehouseView = R; bWarehouseKnown = true; OnChanged.Broadcast();
 }
 void UEconomyStateSubsystem::ApplyFreight(const FGrpcNightfallV1GetFreightResponse& R)
 {
  FreightCounts.Reset(); FreightInstanceTemplates.Reset();
  for (const auto& I : R.Items) { FreightCounts.FindOrAdd(I.TemplateId.Value) += I.Count.Value; FreightInstanceTemplates.Add(I.InstanceId.Value, I.TemplateId.Value); }
- FreightCapacityValue = R.Capacity.Value; bFreightKnown = true; OnChanged.Broadcast();
+ FreightCapacityValue = R.Capacity.Value; FreightView = R; bFreightKnown = true; OnChanged.Broadcast();
 }
 void UEconomyStateSubsystem::ApplyMailList(EGrpcNightfallV1MailBox Box, const FGrpcNightfallV1ListMailResponse& R)
 {
@@ -485,6 +487,24 @@ void UEconomyStateSubsystem::OpenBuylist(const FString& MerchantEntity)
  if (LastMerchant != MerchantEntity.ToLower()) { BuylistView.Reset(); LastBuylistRequest = -1e9; }
  LastMerchant = MerchantEntity.ToLower(); RefreshBuylist(); OnChanged.Broadcast();
 }
+void UEconomyStateSubsystem::OpenContainers() { LastWarehouseRequest = LastFreightRequest = -1e9; RefreshWarehouse(); RefreshFreight(); }
+void UEconomyStateSubsystem::OpenMailboxes() { LastMailRequest = -1e9; RefreshMail(); }
+void UEconomyStateSubsystem::OpenMail(const FString& MessageId)
+{
+ if (!Net || Net->GetOwnEntityId().IsEmpty() || MessageId.IsEmpty()) return;
+ FGrpcNightfallV1ReadMailRequest Q; Q.CharacterId = OwnCharacterId(); Q.MessageId = MessageId.ToLower(); const uint64 Serial = ViewSerial; TWeakObjectPtr<UEconomyStateSubsystem> Weak(this); const FString Id = MessageId.ToLower();
+ auto Done = [Weak, Serial, Id](const FNetResult& R, const FGrpcNightfallV1ReadMailResponse& V) { if (Weak.IsValid() && Weak->ViewSerial == Serial && R.IsOk()) { Weak->MailBodies.Add(Id, V); Weak->OnChanged.Broadcast(); } };
+ if (ReadMailProvider) ReadMailProvider(Q, Done); else if (Session) Session->ReadMail(Q, Done);
+}
+void UEconomyStateSubsystem::OpenAuctions(uint32 InstanceNpcId) { if (!InstanceNpcId) return; if (LastAuctionNpc != InstanceNpcId) AuctionsView.Reset(); LastAuctionNpc = InstanceNpcId; LastAuctionRequest = -1e9; RefreshAuctions(); OnChanged.Broadcast(); }
+void UEconomyStateSubsystem::OpenManor(uint32 CastleId)
+{
+ if (!CastleId) return; if (ManorCastle != CastleId) ManorView.Reset(); ManorCastle = CastleId;
+ FGrpcNightfallV1GetManorDataRequest Q; Q.CastleId = CastleId; const uint64 Serial = ViewSerial; TWeakObjectPtr<UEconomyStateSubsystem> Weak(this);
+ auto Done = [Weak, Serial, CastleId](const FNetResult& R, const FGrpcNightfallV1GetManorDataResponse& V) { if (Weak.IsValid() && Weak->ViewSerial == Serial && Weak->ManorCastle == CastleId && R.IsOk()) { Weak->ManorView = V; Weak->OnChanged.Broadcast(); } };
+ if (ManorProvider) ManorProvider(Q, Done); else if (Session) Session->GetManorData(Q, Done);
+}
+bool UEconomyStateSubsystem::ContainerBusy(EGrpcNightfallV1ItemOperation Op, const FString& Key) const { const FString Scope = RequestScope(Op, Key); return BusyNow.Contains(Scope) && !Outstanding.Contains(Scope); }
 void UEconomyStateSubsystem::OpenMultisell(uint32 ListId)
 {
  // Static per epoch (GetMultisellList is Phase5Rules data): one request per list, cached.
@@ -515,7 +535,14 @@ bool UEconomyStateSubsystem::Build(const FString& Name, const TArray<FString>& A
  if (Name == TEXT("nf.buy")) { const FString Merchant = Npc(*A[0]); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorBuyRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1TemplateCount T; T.TemplateId = uint32(Num(A[2])); T.Count = Num(A[3]); Q.Items.Add(T); M.VendorBuy = Q; return true; }
  if (Name == TEXT("nf.sell")) { const FString Merchant = Npc(*A[0]); const auto Id = Instance(A[2]); if (Merchant.IsEmpty() || !Id.IsSet()) return false; FGrpcNightfallV1VendorSellRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1ItemCount C; C.InstanceId = *Id; C.Count = Num(A[3]); Q.Items.Add(C); M.VendorSell = Q; return true; }
  if (Name == TEXT("nf.refund")) { const FString Merchant = Npc(*A[0]); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorRefundRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); Q.RefundIndices.Add(FUInt32(uint32(Num(A[2])))); M.VendorRefund = Q; return true; }
- if (Name == TEXT("nf.multisell")) { const FString Ex = Npc(TEXT("exchanger")); if (Ex.IsEmpty()) return false; FGrpcNightfallV1MultisellChooseRequest Q; Q.IdempotencyKey = Key; Q.Npc = Ex; Q.ListId = uint32(Num(A[1])); Q.EntryId = uint32(Num(A[2])); Q.Amount = Num(A[3]); M.MultisellChoose = Q; return true; }
+ if (Name == TEXT("nf.multisell"))
+ {
+  // Z lane 3.7: the pinned PreparedEntry id = (0-based index + 1) x 100000 + the enchant of a maintained list.
+  const FString Ex = Npc(TEXT("exchanger")); if (Ex.IsEmpty()) return false;
+  const uint64 Enchant = A.Num() == 5 ? Num(A[4].Mid(8)) : 0; const uint64 Prepared = (Num(A[2]) + 1) * UEconomyStateSubsystem::MultisellEntryStride + Enchant;
+  if (Prepared > MAX_uint32 || Enchant >= UEconomyStateSubsystem::MultisellEntryStride) return false;
+  FGrpcNightfallV1MultisellChooseRequest Q; Q.IdempotencyKey = Key; Q.Npc = Ex; Q.ListId = uint32(Num(A[1])); Q.EntryId = uint32(Prepared); Q.Amount = Num(A[3]); M.MultisellChoose = Q; return true;
+ }
  if (Name == TEXT("nf.registerrecipe")) { const auto Id = Instance(A[0]); if (!Id.IsSet()) return false; FGrpcNightfallV1RegisterRecipeRequest Q; Q.IdempotencyKey = Key; Q.RecipeInstanceId = *Id; M.RegisterRecipe = Q; return true; }
  if (Name == TEXT("nf.deleterecipe")) { FGrpcNightfallV1DeleteRecipeRequest Q; Q.IdempotencyKey = Key; Q.RecipeId = uint32(Num(A[0])); M.DeleteRecipe = Q; return true; }
  if (Name == TEXT("nf.craft")) { FGrpcNightfallV1CraftItemRequest Q; Q.IdempotencyKey = Key; Q.RecipeId = uint32(Num(A[0])); M.CraftItem = Q; return true; }

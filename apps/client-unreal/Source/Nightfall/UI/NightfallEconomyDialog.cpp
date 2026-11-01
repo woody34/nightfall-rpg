@@ -65,6 +65,11 @@ TOptional<uint64> UNightfallEconomyDialog::PositiveNumber(const UEditableTextBox
  if (Text.IsEmpty() || !Text.IsNumeric() || Text.Contains(TEXT(".")) || Text.Contains(TEXT("-"))) return {};
  const uint64 N = FCString::Strtoui64(*Text, nullptr, 10); return N > 0 ? TOptional<uint64>(N) : TOptional<uint64>();
 }
+FString UNightfallEconomyDialog::BusyNotice() const
+{
+ return Economy && FrozenOp.IsSet() && Economy->ContainerBusy(*FrozenOp, Key)
+  ? FString(TEXT("\nThe container is busy (CONTAINER_BUSY). Retry sends the same request with the same key.")) : FString();
+}
 bool UNightfallEconomyDialog::Ready() const { return Economy && Inventory && Inventory->HasBaseline() && !Economy->IsBusy(); }
 FString UNightfallEconomyDialog::ItemName(uint32 Template) const
 {
@@ -161,6 +166,7 @@ void UNightfallMultisellDialog::EnsureLayout()
  if (!BeginLayout(TEXT("Exchange — multisell"))) return;
  List = AddNumber(TEXT("List"), TEXT(""));
  Entry = AddChoice(TEXT("Entry")); Amount = AddNumber(TEXT("Amount"), TEXT("1"));
+ Enchant = AddNumber(TEXT("Enchant of the kept ingredient (maintained lists)"), TEXT("0"));
  AddCommonButtons(TEXT("Exchange"));
 }
 void UNightfallMultisellDialog::BindState(UEconomyStateSubsystem* InEconomy, UInventoryStateSubsystem* InInventory, const FString& InNpc, uint32 InListId)
@@ -186,6 +192,7 @@ void UNightfallMultisellDialog::Render()
    Labels.Add(E.EntryId.Value, Label); Choices.Add(Label, E.EntryId.Value); Entry->AddOption(Label);
   }
  if (Choices.Contains(Was)) Entry->SetSelectedOption(Was); else if (Entry->GetOptionCount() > 0) Entry->SetSelectedIndex(0);
+ Enchant->SetIsEnabled(View && View->MaintainEnchantment);
  bRendering = false;
  ConfirmButton->SetIsEnabled(CanConfirm()); RetryButton->SetIsEnabled(Ready() && FrozenOp.IsSet());
  FString Text = Economy->Status();
@@ -195,12 +202,17 @@ void UNightfallMultisellDialog::Render()
 }
 bool UNightfallMultisellDialog::CanConfirm() const
 {
- return Ready() && Economy->Multisell(ListId) && Choices.Contains(Entry->GetSelectedOption()) && PositiveNumber(Amount).IsSet();
+ if (!Ready() || !Economy->Multisell(ListId) || !Choices.Contains(Entry->GetSelectedOption()) || !PositiveNumber(Amount).IsSet()) return false;
+ const FString E = Enchant->GetText().ToString().TrimStartAndEnd(); const auto N = PositiveNumber(Enchant);
+ return E == TEXT("0") || (Economy->Multisell(ListId)->MaintainEnchantment && N.IsSet() && *N < UEconomyStateSubsystem::MultisellEntryStride);
 }
 void UNightfallMultisellDialog::Confirm()
 {
  if (!CanConfirm()) return;
- const uint32 EntryId = Choices.FindRef(Entry->GetSelectedOption()); const uint64 N = *PositiveNumber(Amount);
+ // The pinned PreparedEntry id (Z lane 3.7): the 1-based entry x 100000 + the kept enchant.
+ const uint64 Prepared = uint64(Choices.FindRef(Entry->GetSelectedOption())) * UEconomyStateSubsystem::MultisellEntryStride + PositiveNumber(Enchant).Get(0);
+ if (Prepared > MAX_uint32) return;
+ const uint32 EntryId = uint32(Prepared); const uint64 N = *PositiveNumber(Amount);
  Send(EOp::ITEM_OPERATION_MULTISELL_CHOOSE, FString::Printf(TEXT("%u %u %llu"), ListId, EntryId, N), [&](const FString& K, FClientMessage& M) {
   FGrpcNightfallV1MultisellChooseRequest Q; Q.IdempotencyKey = K; Q.Npc = Npc; Q.ListId = ListId; Q.EntryId = EntryId; Q.Amount = N; M.MultisellChoose = Q; });
 }
@@ -569,5 +581,297 @@ void UNightfallStoreVisitDialog::Confirm()
  {
   const uint32 Recipe = S->Manufacture[I].RecipeId.Value;
   Send(EOp::ITEM_OPERATION_PRIVATE_MANUFACTURE, FString::Printf(TEXT("order %s %u"), *Who, Recipe), [&](const FString& Key0, FClientMessage& M) { FGrpcNightfallV1PrivateManufactureOrderRequest Q; Q.IdempotencyKey = Key0; Q.StoreOwner = Who; Q.RecipeId = Recipe; M.PrivateManufactureOrder = Q; });
+ }
+}
+
+// --- warehouse keeper (story 5.5) --------------------------------------------------------------
+
+void UNightfallKeeperDialog::EnsureLayout()
+{
+ if (!BeginLayout(TEXT("Warehouse keeper — warehouse and freight"))) return;
+ Tab = AddChoice(TEXT("Action")); for (const TCHAR* T : {TEXT("Deposit"), TEXT("Withdraw"), TEXT("Freight send"), TEXT("Freight withdraw")}) Tab->AddOption(T); Tab->SetSelectedIndex(0);
+ Entry = AddChoice(TEXT("Item")); Count = AddNumber(TEXT("Count"), TEXT("1"));
+ Target = AddNumber(TEXT("Freight to character (id)"), TEXT(""));
+ AddCommonButtons(TEXT("Confirm"));
+}
+void UNightfallKeeperDialog::BindState(UEconomyStateSubsystem* InEconomy, UInventoryStateSubsystem* InInventory, const FString& InKeeper)
+{
+ EnsureLayout(); Keeper = InKeeper.ToLower(); Bind(InEconomy, InInventory);
+ if (Economy) Economy->OpenContainers();
+ Render();
+}
+FString UNightfallKeeperDialog::StatusText() const { return Status ? Status->GetText().ToString() : FString(); }
+void UNightfallKeeperDialog::Render()
+{
+ if (!Entry || !Economy || !Inventory) return;
+ bRendering = true; const FString T = Tab->GetSelectedOption(), Was = Entry->GetSelectedOption();
+ Entry->ClearOptions(); Choices.Reset();
+ auto Row = [&](uint64 Id, uint32 Template, uint64 N) { const FString L = FString::Printf(TEXT("%s #%llu x%llu"), *ItemName(Template), Id, N); Choices.Add(L, Id); Entry->AddOption(L); };
+ if (T == TEXT("Deposit") || T == TEXT("Freight send"))
+ {
+  TArray<uint64> Ids; Inventory->GetItems().GetKeys(Ids); Ids.Sort();
+  for (uint64 Id : Ids) { const auto* I = Inventory->Find(Id); Row(Id, I->TemplateId.Value, I->Count.Value); }
+ }
+ else if (T == TEXT("Withdraw") && Economy->Warehouse().IsSet()) for (const auto& I : Economy->Warehouse()->Items) Row(I.InstanceId.Value, I.TemplateId.Value, I.Count.Value);
+ else if (T == TEXT("Freight withdraw") && Economy->Freight().IsSet()) for (const auto& I : Economy->Freight()->Items) Row(I.InstanceId.Value, I.TemplateId.Value, I.Count.Value);
+ if (Choices.Contains(Was)) Entry->SetSelectedOption(Was); else if (Entry->GetOptionCount() > 0) Entry->SetSelectedIndex(0);
+ Target->SetIsEnabled(T == TEXT("Freight send"));
+ bRendering = false;
+ ConfirmButton->SetIsEnabled(CanConfirm()); RetryButton->SetIsEnabled(Ready() && FrozenOp.IsSet());
+ FString Text = Economy->Status();
+ const auto& W = Economy->Warehouse(); const auto& F = Economy->Freight();
+ Text += W.IsSet() ? FString::Printf(TEXT("\nWarehouse: %d rows, capacity %u"), W->Items.Num(), W->Capacity.Value) : FString(TEXT("\nWaiting for the warehouse"));
+ Text += F.IsSet() ? FString::Printf(TEXT("\nFreight: %d rows, capacity %u"), F->Items.Num(), F->Capacity.Value) : FString(TEXT("\nWaiting for the freight"));
+ Status->SetText(FText::FromString(Text + BusyNotice()));
+}
+bool UNightfallKeeperDialog::CanConfirm() const
+{
+ if (!Ready() || Keeper.IsEmpty() || !Choices.Contains(Entry->GetSelectedOption()) || !PositiveNumber(Count).IsSet()) return false;
+ return Tab->GetSelectedOption() != TEXT("Freight send") || !Target->GetText().ToString().TrimStartAndEnd().IsEmpty();
+}
+void UNightfallKeeperDialog::Confirm()
+{
+ if (!CanConfirm()) return;
+ const FString T = Tab->GetSelectedOption(); const uint64 Id = Choices.FindRef(Entry->GetSelectedOption()); const uint64 N = *PositiveNumber(Count);
+ const FString To = Target->GetText().ToString().TrimStartAndEnd().ToLower(); const FString K0 = Keeper;
+ FGrpcNightfallV1ItemCount C; C.InstanceId = Id; C.Count = N;
+ const FString Args = FString::Printf(TEXT("%s %llu %llu %s"), *T, Id, N, *To);
+ if (T == TEXT("Deposit")) Send(EOp::ITEM_OPERATION_WAREHOUSE_DEPOSIT, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1WarehouseDepositRequest Q; Q.IdempotencyKey = K; Q.Keeper = K0; Q.Entries.Add(C); M.WarehouseDeposit = Q; });
+ else if (T == TEXT("Withdraw")) Send(EOp::ITEM_OPERATION_WAREHOUSE_WITHDRAW, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1WarehouseWithdrawRequest Q; Q.IdempotencyKey = K; Q.Keeper = K0; Q.Entries.Add(C); M.WarehouseWithdraw = Q; });
+ else if (T == TEXT("Freight send")) Send(EOp::ITEM_OPERATION_FREIGHT_SEND, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1FreightSendRequest Q; Q.IdempotencyKey = K; Q.Keeper = K0; Q.TargetCharacter = To; Q.Entries.Add(C); M.FreightSend = Q; });
+ else Send(EOp::ITEM_OPERATION_FREIGHT_WITHDRAW, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1FreightWithdrawRequest Q; Q.IdempotencyKey = K; Q.Keeper = K0; Q.Entries.Add(C); M.FreightWithdraw = Q; });
+}
+
+// --- mail (story 5.5) --------------------------------------------------------------------------
+
+void UNightfallMailDialog::EnsureLayout()
+{
+ if (!BeginLayout(TEXT("Mail"))) return;
+ Box = AddChoice(TEXT("Box")); for (const TCHAR* B : {TEXT("Inbox"), TEXT("Sent"), TEXT("Write")}) Box->AddOption(B); Box->SetSelectedIndex(0);
+ Message = AddChoice(TEXT("Message")); Action = AddChoice(TEXT("Action"));
+ Read = AddText(TEXT(""));
+ Receiver = AddNumber(TEXT("To (character name)"), TEXT("")); Subject = AddNumber(TEXT("Subject"), TEXT("")); Body = AddNumber(TEXT("Text"), TEXT(""));
+ Cod = AddNumber(TEXT("Cash on delivery (adena, 0 = none)"), TEXT("0"));
+ Attachment = AddChoice(TEXT("Attachment")); Count = AddNumber(TEXT("Count"), TEXT("1"));
+ Attach = AddButton(TEXT("Attach")); Attach->OnClicked.AddDynamic(this, &UNightfallMailDialog::AddAttachment);
+ Attached = AddText(TEXT("No attachments"));
+ AddCommonButtons(TEXT("Confirm"));
+}
+void UNightfallMailDialog::BindState(UEconomyStateSubsystem* InEconomy, UInventoryStateSubsystem* InInventory)
+{
+ EnsureLayout(); Bind(InEconomy, InInventory); if (Economy) Economy->OpenMailboxes(); Render();
+}
+FString UNightfallMailDialog::ReadText() const { return Read ? Read->GetText().ToString() : FString(); }
+FString UNightfallMailDialog::SelectedMessage() const { return Messages.FindRef(Message->GetSelectedOption()); }
+void UNightfallMailDialog::Render()
+{
+ if (!Message || !Economy || !Inventory) return;
+ bRendering = true; const FString B = Box->GetSelectedOption(), WasM = Message->GetSelectedOption(), WasA = Action->GetSelectedOption(), WasI = Attachment->GetSelectedOption();
+ Message->ClearOptions(); Action->ClearOptions(); Attachment->ClearOptions(); Messages.Reset(); Items.Reset();
+ const bool bWrite = B == TEXT("Write"); const auto& View = B == TEXT("Sent") ? Economy->Outbox() : Economy->Inbox();
+ if (!bWrite && View.IsSet())
+  for (const auto& H : View->Messages)
+  {
+   // The received header flags: COD amount, attachments, read, returned.
+   FString L = FString::Printf(TEXT("%s — %s"), *H.Subject, B == TEXT("Sent") ? *H.ReceiverName : *H.SenderName);
+   if (H.CodAdena.Value) L += FString::Printf(TEXT(" [COD %llu adena]"), H.CodAdena.Value);
+   if (H.HasAttachments) L += TEXT(" [attachments]"); if (H.Read) L += TEXT(" [read]"); if (H.Returned) L += TEXT(" [returned]");
+   Messages.Add(L, H.MessageId.ToLower()); Message->AddOption(L);
+  }
+ if (Messages.Contains(WasM)) Message->SetSelectedOption(WasM); else if (Message->GetOptionCount() > 0) Message->SetSelectedIndex(0);
+ TArray<FString> Actions;
+ if (bWrite) Actions = { TEXT("Send") };
+ else if (B == TEXT("Sent")) Actions = { TEXT("Read"), TEXT("Cancel"), TEXT("Delete") };
+ else Actions = { TEXT("Read"), TEXT("Take attachments"), TEXT("Reject"), TEXT("Mark read"), TEXT("Delete") };
+ for (const FString& A : Actions) Action->AddOption(A);
+ if (Actions.Contains(WasA)) Action->SetSelectedOption(WasA); else Action->SetSelectedIndex(0);
+ if (bWrite)
+ {
+  TSet<uint64> Used; for (const auto& A : Attachments) Used.Add(A.InstanceId.Value);
+  TArray<uint64> Ids; Inventory->GetItems().GetKeys(Ids); Ids.Sort();
+  for (uint64 Id : Ids) { if (Used.Contains(Id)) continue; const auto* I = Inventory->Find(Id); const FString L = FString::Printf(TEXT("%s #%llu x%llu"), *ItemName(I->TemplateId.Value), Id, I->Count.Value); Items.Add(L, Id); Attachment->AddOption(L); }
+ }
+ if (Items.Contains(WasI)) Attachment->SetSelectedOption(WasI); else if (Attachment->GetOptionCount() > 0) Attachment->SetSelectedIndex(0);
+ for (UWidget* W : TArray<UWidget*>{ Receiver, Subject, Body, Cod, Attachment, Count }) W->SetIsEnabled(bWrite);
+ // The read body is the ReadMail response; attachments appear only when the server sends them.
+ FString Shown;
+ if (const auto* R = bWrite ? nullptr : Economy->MailBody(SelectedMessage()))
+ {
+  Shown = FString::Printf(TEXT("%s\n%s"), *R->Header.Subject, *R->Body);
+  for (const auto& I : R->Attachments) Shown += FString::Printf(TEXT("\n  %s x%llu"), *ItemName(I.TemplateId.Value), I.Count.Value);
+ }
+ Read->SetText(FText::FromString(Shown));
+ TArray<FString> Lines; for (const auto& A : Attachments) { const auto* I = Inventory->Find(A.InstanceId.Value); Lines.Add(FString::Printf(TEXT("%s x%llu"), *ItemName(I ? I->TemplateId.Value : 0), A.Count.Value)); }
+ Attached->SetText(FText::FromString(Lines.IsEmpty() ? FString(TEXT("No attachments")) : FString::Join(Lines, TEXT("\n"))));
+ bRendering = false;
+ Attach->SetIsEnabled(bWrite && Items.Contains(Attachment->GetSelectedOption()) && PositiveNumber(Count).IsSet());
+ ConfirmButton->SetIsEnabled(CanConfirm()); RetryButton->SetIsEnabled(Ready() && FrozenOp.IsSet());
+ FString Text = Economy->Status(); if (!bWrite && View.IsSet()) Text += FString::Printf(TEXT("\n%u of %u messages"), View->Count.Value, View->Limit.Value);
+ Status->SetText(FText::FromString(Text + BusyNotice()));
+}
+void UNightfallMailDialog::AddAttachment()
+{
+ const auto N = PositiveNumber(Count); if (!Items.Contains(Attachment->GetSelectedOption()) || !N.IsSet()) return;
+ FGrpcNightfallV1ItemCount C; C.InstanceId = Items.FindRef(Attachment->GetSelectedOption()); C.Count = *N; Attachments.Add(C);
+ NewKey(); FrozenOp.Reset(); Render();
+}
+bool UNightfallMailDialog::CanConfirm() const
+{
+ if (!Ready()) return false;
+ const FString A = Action->GetSelectedOption();
+ if (A == TEXT("Send"))
+ {
+  const FString Cash = Cod->GetText().ToString().TrimStartAndEnd();
+  return !Receiver->GetText().ToString().TrimStartAndEnd().IsEmpty() && !Subject->GetText().ToString().TrimStartAndEnd().IsEmpty() && (Cash == TEXT("0") || PositiveNumber(Cod).IsSet());
+ }
+ return !SelectedMessage().IsEmpty();
+}
+void UNightfallMailDialog::Confirm()
+{
+ if (!CanConfirm()) return;
+ const FString A = Action->GetSelectedOption(); const FString Id = SelectedMessage();
+ if (A == TEXT("Read")) { Economy->OpenMail(Id); return; } // a read RPC: no intent, no key
+ if (A == TEXT("Send"))
+ {
+  const FString To = Receiver->GetText().ToString().TrimStartAndEnd(), Sub = Subject->GetText().ToString().TrimStartAndEnd(), Text = Body->GetText().ToString();
+  const uint64 Cash = PositiveNumber(Cod).Get(0);
+  Send(EOp::ITEM_OPERATION_MAIL_SEND, FString::Printf(TEXT("send %s %llu %d"), *To, Cash, Attachments.Num()), [&](const FString& K, FClientMessage& M) {
+   FGrpcNightfallV1MailSendRequest Q; Q.IdempotencyKey = K; Q.ReceiverName = To; Q.Subject = Sub; Q.Body = Text; Q.CodAdena = Cash; Q.Attachments = Attachments; M.MailSend = Q; });
+  return;
+ }
+ const FString Args = A + TEXT(" ") + Id;
+ if (A == TEXT("Take attachments")) Send(EOp::ITEM_OPERATION_MAIL_TAKE, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1MailTakeAttachmentsRequest Q; Q.IdempotencyKey = K; Q.MessageId = Id; M.MailTakeAttachments = Q; });
+ else if (A == TEXT("Reject")) Send(EOp::ITEM_OPERATION_MAIL_REJECT, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1MailRejectRequest Q; Q.IdempotencyKey = K; Q.MessageId = Id; M.MailReject = Q; });
+ else if (A == TEXT("Mark read")) Send(EOp::ITEM_OPERATION_MAIL_MARK_READ, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1MailMarkReadRequest Q; Q.IdempotencyKey = K; Q.MessageId = Id; M.MailMarkRead = Q; });
+ else if (A == TEXT("Cancel")) Send(EOp::ITEM_OPERATION_MAIL_CANCEL, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1MailCancelRequest Q; Q.IdempotencyKey = K; Q.MessageId = Id; M.MailCancel = Q; });
+ else
+ {
+  const bool bSent = Box->GetSelectedOption() == TEXT("Sent");
+  Send(EOp::ITEM_OPERATION_MAIL_DELETE, Args, [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1MailDeleteRequest Q; Q.IdempotencyKey = K; Q.MessageIds.Add(Id); Q.SentBox = bSent; M.MailDelete = Q; });
+ }
+}
+
+// --- item auction (story 5.5) ------------------------------------------------------------------
+
+void UNightfallAuctionDialog::EnsureLayout()
+{
+ if (!BeginLayout(TEXT("Item auction"))) return;
+ Instance = AddNumber(TEXT("Auctioneer instance"), TEXT(""));
+ Shown = AddText(TEXT("Waiting for the auction"));
+ Action = AddChoice(TEXT("Action")); for (const TCHAR* A : {TEXT("Bid"), TEXT("Cancel bid")}) Action->AddOption(A); Action->SetSelectedIndex(0);
+ Bid = AddNumber(TEXT("Bid (adena)"), TEXT(""));
+ AddCommonButtons(TEXT("Confirm"));
+}
+void UNightfallAuctionDialog::BindState(UEconomyStateSubsystem* InEconomy, UInventoryStateSubsystem* InInventory, const FString& InAuctioneer, uint32 InInstance)
+{
+ EnsureLayout(); Auctioneer = InAuctioneer.ToLower(); Bind(InEconomy, InInventory);
+ InstanceId = InInstance ? InInstance : (Economy ? Economy->AuctionInstance() : 0);
+ bRendering = true; Instance->SetText(FText::FromString(InstanceId ? FString::Printf(TEXT("%u"), InstanceId) : FString())); bRendering = false;
+ if (Economy && InstanceId) Economy->OpenAuctions(InstanceId);
+ Render();
+}
+FString UNightfallAuctionDialog::AuctionText() const { return Shown ? Shown->GetText().ToString() : FString(); }
+void UNightfallAuctionDialog::Render()
+{
+ if (!Action || !Economy || !Inventory) return;
+ if (const TOptional<uint64> Typed = PositiveNumber(Instance); Typed.IsSet() && *Typed <= MAX_uint32 && uint32(*Typed) != InstanceId) { InstanceId = uint32(*Typed); Economy->OpenAuctions(InstanceId); }
+ const auto& V = Economy->AuctionView();
+ auto StateName = [](EGrpcNightfallV1AuctionState S) { return S == EGrpcNightfallV1AuctionState::AUCTION_STATE_STARTED ? TEXT("started") : S == EGrpcNightfallV1AuctionState::AUCTION_STATE_FINISHED ? TEXT("finished") : S == EGrpcNightfallV1AuctionState::AUCTION_STATE_CREATED ? TEXT("created") : TEXT("unknown"); };
+ auto Line = [&](const TCHAR* Label, const FGrpcNightfallV1AuctionView& A) {
+  // The received bids: no client-side bid arithmetic.
+  return FString::Printf(TEXT("%s: %s x%llu, %s, start %llu, highest %llu, your bid %llu%s"), Label, *ItemName(A.TemplateId.Value), A.Count.Value, StateName(A.State), A.InitBid.Value, A.HighestBid.Value, A.OwnBid.Value, A.OwnCancelled ? TEXT(" (cancelled)") : TEXT("")); };
+ FString Text;
+ if (V.IsSet() && Economy->AuctionInstance() == InstanceId)
+ {
+  if (V->HasCurrent) Text += Line(TEXT("Current"), V->Current); else Text += TEXT("No current auction");
+  if (V->HasNext) Text += TEXT("\n") + Line(TEXT("Next"), V->Next);
+  Text += FString::Printf(TEXT("\nBids you can cancel: %d"), V->OwnBids.Num());
+ }
+ else Text = TEXT("Waiting for the auction");
+ Shown->SetText(FText::FromString(Text));
+ Bid->SetIsEnabled(Action->GetSelectedOption() == TEXT("Bid"));
+ ConfirmButton->SetIsEnabled(CanConfirm()); RetryButton->SetIsEnabled(Ready() && FrozenOp.IsSet());
+ Status->SetText(FText::FromString(Economy->Status() + BusyNotice()));
+}
+bool UNightfallAuctionDialog::CanConfirm() const
+{
+ if (!Ready() || !InstanceId) return false;
+ if (Action->GetSelectedOption() == TEXT("Bid")) return PositiveNumber(Bid).IsSet();
+ const auto& V = Economy->AuctionView(); return !Auctioneer.IsEmpty() && V.IsSet() && Economy->AuctionInstance() == InstanceId && !V->OwnBids.IsEmpty();
+}
+void UNightfallAuctionDialog::Confirm()
+{
+ if (!CanConfirm()) return;
+ const uint32 Npc = InstanceId; const FString Who = Auctioneer;
+ if (Action->GetSelectedOption() == TEXT("Bid"))
+ {
+  const uint64 Amount = *PositiveNumber(Bid);
+  Send(EOp::ITEM_OPERATION_AUCTION_BID, FString::Printf(TEXT("%u %llu"), Npc, Amount), [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1ItemAuctionBidRequest Q; Q.IdempotencyKey = K; Q.InstanceNpcId = Npc; Q.Bid = Amount; M.ItemAuctionBid = Q; });
+ }
+ else Send(EOp::ITEM_OPERATION_AUCTION_CANCEL_BID, FString::Printf(TEXT("%u"), Npc), [&](const FString& K, FClientMessage& M) { FGrpcNightfallV1ItemAuctionCancelBidRequest Q; Q.IdempotencyKey = K; Q.Auctioneer = Who; Q.InstanceNpcId = Npc; M.ItemAuctionCancelBid = Q; });
+}
+
+// --- manor (story 5.5) -------------------------------------------------------------------------
+
+void UNightfallManorDialog::EnsureLayout()
+{
+ if (!BeginLayout(TEXT("Manor manager — seeds and crops"))) return;
+ Castle = AddNumber(TEXT("Manor (castle)"), TEXT("1"));
+ Action = AddChoice(TEXT("Action")); for (const TCHAR* A : {TEXT("Buy seed"), TEXT("Sell crop")}) Action->AddOption(A); Action->SetSelectedIndex(0);
+ Entry = AddChoice(TEXT("Seed or crop")); Item = AddChoice(TEXT("Your crop")); Count = AddNumber(TEXT("Count"), TEXT("1"));
+ AddCommonButtons(TEXT("Confirm"));
+}
+void UNightfallManorDialog::BindState(UEconomyStateSubsystem* InEconomy, UInventoryStateSubsystem* InInventory, const FString& InManager, uint32 InCastle)
+{
+ EnsureLayout(); Manager = InManager.ToLower(); CastleId = InCastle ? InCastle : 1; Bind(InEconomy, InInventory);
+ bRendering = true; Castle->SetText(FText::FromString(FString::Printf(TEXT("%u"), CastleId))); bRendering = false;
+ if (Economy) Economy->OpenManor(CastleId);
+ Render();
+}
+void UNightfallManorDialog::Render()
+{
+ if (!Entry || !Economy || !Inventory) return;
+ if (const TOptional<uint64> Typed = PositiveNumber(Castle); Typed.IsSet() && *Typed <= MAX_uint32 && uint32(*Typed) != CastleId) { CastleId = uint32(*Typed); Economy->OpenManor(CastleId); }
+ bRendering = true; const FString A = Action->GetSelectedOption(), Was = Entry->GetSelectedOption(), WasI = Item->GetSelectedOption();
+ Entry->ClearOptions(); Item->ClearOptions(); Entries.Reset(); Items.Reset();
+ const auto& V = Economy->Manor(); const bool bView = V.IsSet() && V->CastleId.Value == CastleId;
+ if (bView && A == TEXT("Buy seed"))
+  for (int32 I = 0; I < V->Seeds.Num(); ++I) { const auto& S = V->Seeds[I]; const FString L = FString::Printf(TEXT("%s — %llu adena each, %llu/%llu left"), *ItemName(S.SeedId.Value), S.Price.Value, S.Amount.Value, S.StartAmount.Value); Entries.Add(L, I); Entry->AddOption(L); }
+ if (bView && A == TEXT("Sell crop"))
+  for (int32 I = 0; I < V->Crops.Num(); ++I) { const auto& C = V->Crops[I]; const FString L = FString::Printf(TEXT("%s — %llu adena each, %llu/%llu wanted, reward %u"), *ItemName(C.CropId.Value), C.Price.Value, C.Amount.Value, C.StartAmount.Value, C.RewardType.Value); Entries.Add(L, I); Entry->AddOption(L); }
+ if (Entries.Contains(Was)) Entry->SetSelectedOption(Was); else if (Entry->GetOptionCount() > 0) Entry->SetSelectedIndex(0);
+ if (bView && A == TEXT("Sell crop") && Entries.Contains(Entry->GetSelectedOption()))
+ {
+  const uint32 Crop = V->Crops[Entries.FindRef(Entry->GetSelectedOption())].CropId.Value;
+  TArray<uint64> Ids; Inventory->GetItems().GetKeys(Ids); Ids.Sort();
+  for (uint64 Id : Ids) { const auto* I = Inventory->Find(Id); if (I->TemplateId.Value != Crop) continue; const FString L = FString::Printf(TEXT("%s #%llu x%llu"), *ItemName(Crop), Id, I->Count.Value); Items.Add(L, Id); Item->AddOption(L); }
+ }
+ if (Items.Contains(WasI)) Item->SetSelectedOption(WasI); else if (Item->GetOptionCount() > 0) Item->SetSelectedIndex(0);
+ Item->SetIsEnabled(A == TEXT("Sell crop"));
+ bRendering = false;
+ ConfirmButton->SetIsEnabled(CanConfirm()); RetryButton->SetIsEnabled(Ready() && FrozenOp.IsSet());
+ FString Text = Economy->Status(); if (!bView) Text += TEXT("\nWaiting for the manor data");
+ Status->SetText(FText::FromString(Text + BusyNotice()));
+}
+bool UNightfallManorDialog::CanConfirm() const
+{
+ if (!Ready() || Manager.IsEmpty() || !Entries.Contains(Entry->GetSelectedOption()) || !PositiveNumber(Count).IsSet()) return false;
+ return Action->GetSelectedOption() == TEXT("Buy seed") || Items.Contains(Item->GetSelectedOption());
+}
+void UNightfallManorDialog::Confirm()
+{
+ if (!CanConfirm()) return;
+ const auto& V = *Economy->Manor(); const int32 I = Entries.FindRef(Entry->GetSelectedOption()); const uint64 N = *PositiveNumber(Count); const uint32 Manor = CastleId; const FString Who = Manager;
+ if (Action->GetSelectedOption() == TEXT("Buy seed"))
+ {
+  const uint32 Seed = V.Seeds[I].SeedId.Value;
+  Send(EOp::ITEM_OPERATION_MANOR_BUY_SEED, FString::Printf(TEXT("seed %u %u %llu"), Manor, Seed, N), [&](const FString& K, FClientMessage& M) {
+   FGrpcNightfallV1ManorBuySeedRequest Q; Q.IdempotencyKey = K; Q.Manager = Who; Q.ManorId = Manor; FGrpcNightfallV1TemplateCount T; T.TemplateId = Seed; T.Count = N; Q.Seeds.Add(T); M.ManorBuySeed = Q; });
+ }
+ else
+ {
+  const uint32 Crop = V.Crops[I].CropId.Value; const uint64 Id = Items.FindRef(Item->GetSelectedOption());
+  Send(EOp::ITEM_OPERATION_MANOR_SELL_CROP, FString::Printf(TEXT("crop %u %u %llu %llu"), Manor, Crop, Id, N), [&](const FString& K, FClientMessage& M) {
+   FGrpcNightfallV1ManorSellCropRequest Q; Q.IdempotencyKey = K; Q.Manager = Who; FGrpcNightfallV1CropSale C; C.InstanceId = Id; C.CropId = Crop; C.ManorId = Manor; C.Count = N; Q.Entries.Add(C); M.ManorSellCrop = Q; });
  }
 }

@@ -42,6 +42,8 @@ protected:
  /** Freeze `Body` under a new key (or the current key when nothing was sent with it yet) and send. */
  void Send(EGrpcNightfallV1ItemOperation Op, const FString& Arguments, TFunction<void(const FString& Key, FClientMessage& Body)> Fill);
  bool Ready() const;
+ /** Story 5.5: the CONTAINER_BUSY retry text when the frozen request was answered busy. */
+ FString BusyNotice() const;
  FString ItemName(uint32 Template) const;
  void NewKey();
  UFUNCTION() void SelectionChanged(FString Option, ESelectInfo::Type Type);
@@ -101,6 +103,7 @@ public:
  UComboBoxString* EntryControl() const { return Entry; }
  UEditableTextBox* AmountControl() const { return Amount; }
  UEditableTextBox* ListControl() const { return List; }
+ UEditableTextBox* EnchantControl() const { return Enchant; }
  FString EntryLabel(uint32 EntryId) const;
 protected:
  virtual void Confirm() override;
@@ -108,6 +111,7 @@ private:
  UPROPERTY() TObjectPtr<UComboBoxString> Entry;
  UPROPERTY() TObjectPtr<UEditableTextBox> Amount;
  UPROPERTY() TObjectPtr<UEditableTextBox> List;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Enchant;
  TMap<FString, uint32> Choices;
  TMap<uint32, FString> Labels;
  FString Npc;
@@ -245,4 +249,130 @@ private:
  TMap<FString, int32> Entries; // label -> index into the received sell/buy/manufacture rows
  TMap<FString, uint64> Items;  // label -> owned instance (sell into a buy store)
  FString Owner;
+};
+
+/**
+ * Story 5.5: the warehouse keeper: deposit, withdraw, freight send and freight withdraw. The rows
+ * and capacities are the GetWarehouse / GetFreight views; CONTAINER_BUSY shows the retry notice.
+ */
+UCLASS()
+class NIGHTFALL_API UNightfallKeeperDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory, const FString& Keeper);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ UComboBoxString* TabControl() const { return Tab; }
+ UComboBoxString* EntryControl() const { return Entry; }
+ UEditableTextBox* CountControl() const { return Count; }
+ UEditableTextBox* TargetControl() const { return Target; }
+ FString StatusText() const;
+protected:
+ virtual void Confirm() override;
+private:
+ UPROPERTY() TObjectPtr<UComboBoxString> Tab;
+ UPROPERTY() TObjectPtr<UComboBoxString> Entry;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Count;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Target;
+ TMap<FString, uint64> Choices;
+ FString Keeper;
+};
+
+/** Story 5.5: the inbox, the sent box and a new mail, from ListMail / ReadMail and the mail intents. */
+UCLASS()
+class NIGHTFALL_API UNightfallMailDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ UComboBoxString* BoxControl() const { return Box; }
+ UComboBoxString* MessageControl() const { return Message; }
+ UComboBoxString* ActionControl() const { return Action; }
+ UEditableTextBox* ReceiverControl() const { return Receiver; }
+ UEditableTextBox* SubjectControl() const { return Subject; }
+ UEditableTextBox* BodyControl() const { return Body; }
+ UEditableTextBox* CodControl() const { return Cod; }
+ UComboBoxString* AttachmentControl() const { return Attachment; }
+ UEditableTextBox* CountControl() const { return Count; }
+ UButton* AttachControl() const { return Attach; }
+ FString ReadText() const;
+protected:
+ virtual void Confirm() override;
+private:
+ UFUNCTION() void AddAttachment();
+ FString SelectedMessage() const;
+ UPROPERTY() TObjectPtr<UComboBoxString> Box;
+ UPROPERTY() TObjectPtr<UComboBoxString> Message;
+ UPROPERTY() TObjectPtr<UComboBoxString> Action;
+ UPROPERTY() TObjectPtr<UTextBlock> Read;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Receiver;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Subject;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Body;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Cod;
+ UPROPERTY() TObjectPtr<UComboBoxString> Attachment;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Count;
+ UPROPERTY() TObjectPtr<UButton> Attach;
+ UPROPERTY() TObjectPtr<UTextBlock> Attached;
+ TMap<FString, FString> Messages; // label -> message id
+ TMap<FString, uint64> Items;     // label -> owned instance
+ TArray<FGrpcNightfallV1ItemCount> Attachments;
+};
+
+/** Story 5.5: an auctioneer's current and next auction and the own bids, from ListItemAuctions. */
+UCLASS()
+class NIGHTFALL_API UNightfallAuctionDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory, const FString& Auctioneer, uint32 Instance);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ UEditableTextBox* InstanceControl() const { return Instance; }
+ UComboBoxString* ActionControl() const { return Action; }
+ UEditableTextBox* BidControl() const { return Bid; }
+ FString AuctionText() const;
+protected:
+ virtual void Confirm() override;
+private:
+ UPROPERTY() TObjectPtr<UEditableTextBox> Instance;
+ UPROPERTY() TObjectPtr<UTextBlock> Shown;
+ UPROPERTY() TObjectPtr<UComboBoxString> Action;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Bid;
+ FString Auctioneer;
+ uint32 InstanceId = 0;
+};
+
+/** Story 5.5: a manor manager's seed production and crop procurement, from GetManorData. */
+UCLASS()
+class NIGHTFALL_API UNightfallManorDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory, const FString& Manager, uint32 Castle);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ UComboBoxString* ActionControl() const { return Action; }
+ UComboBoxString* EntryControl() const { return Entry; }
+ UComboBoxString* ItemControl() const { return Item; }
+ UEditableTextBox* CountControl() const { return Count; }
+ UEditableTextBox* CastleControl() const { return Castle; }
+protected:
+ virtual void Confirm() override;
+private:
+ UPROPERTY() TObjectPtr<UEditableTextBox> Castle;
+ UPROPERTY() TObjectPtr<UComboBoxString> Action;
+ UPROPERTY() TObjectPtr<UComboBoxString> Entry;
+ UPROPERTY() TObjectPtr<UComboBoxString> Item;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Count;
+ TMap<FString, int32> Entries; // label -> index into seeds or crops
+ TMap<FString, uint64> Items;  // label -> owned crop instance
+ FString Manager;
+ uint32 CastleId = 0;
 };
