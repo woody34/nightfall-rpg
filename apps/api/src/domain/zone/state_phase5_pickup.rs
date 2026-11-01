@@ -32,6 +32,16 @@ pub(super) struct CharacterRow<'a> {
     pub(super) receipt: Option<&'a str>,
     pub(super) cause: Option<String>,
     pub(super) transfer: Option<TransferRef>,
+    /// P5-D33: the recipient set of a party split or a sweep-to-party distribution
+    /// (canonical character ids, ascending); empty otherwise.
+    pub(super) recipients: Vec<uuid::Uuid>,
+}
+
+/// P5-D33: the recipient-set cause of a source row: `recipients:<uuid>,<uuid>,...`, the
+/// canonical character ids in ascending order.
+pub(super) fn recipients_cause(recipients: &[uuid::Uuid]) -> String {
+    let ids: Vec<String> = recipients.iter().map(ToString::to_string).collect();
+    format!("recipients:{}", ids.join(","))
 }
 
 /// The serde name of a unit enum value (`snake_case`), for audit text.
@@ -394,6 +404,11 @@ impl ZoneState {
         let ground_owner = ground_entity.as_uuid();
         let mut affected = Vec::new();
         let mut ordinal = 0_u32;
+        // P5-D33: the split's recipient set, canonical character ids ascending.
+        let mut recipients: Vec<uuid::Uuid> =
+            payouts.iter().map(|p| p.recipient.as_uuid()).collect();
+        recipients.sort_unstable();
+        recipients.dedup();
         if even {
             self.push_ledger(EconomyLedgerRow {
                 owner_kind: OwnerKind::Ground,
@@ -406,7 +421,10 @@ impl ZoneState {
                 after: None,
                 transfer: None,
                 receipt: Some(receipt.clone()),
-                causes: vec![format!("party_split:{resolution}")],
+                causes: vec![
+                    format!("party_split:{resolution}"),
+                    recipients_cause(&recipients),
+                ],
             });
         }
         for payout in &payouts {
@@ -453,6 +471,7 @@ impl ZoneState {
                         receipt: Some(&receipt),
                         cause: Some(format!("party_split:{resolution}")),
                         transfer: None,
+                        recipients: recipients.clone(),
                     },
                     events,
                 )?;
@@ -502,6 +521,7 @@ impl ZoneState {
                             // The ground row's link names this row's position instead.
                             peer_ordinal: None,
                         }),
+                        recipients: Vec::new(),
                     },
                     events,
                 )?;
@@ -967,6 +987,17 @@ impl ZoneState {
         }
         if let Some(cause) = row.cause {
             fields.insert("cause".into(), V::Text(cause));
+        }
+        if !row.recipients.is_empty() {
+            fields.insert(
+                "recipients".into(),
+                V::Values(
+                    row.recipients
+                        .iter()
+                        .map(|r| V::Text(r.to_string()))
+                        .collect(),
+                ),
+            );
         }
         if let Some(transfer) = &row.transfer {
             fields.insert("link".into(), V::Text(transfer.link.to_string()));
@@ -1715,6 +1746,28 @@ mod tests {
         let rows = ledger(&tick);
         assert_eq!(rows.len(), 1);
         assert_eq!((rows[0].owner_kind, rows[0].op), (OwnerKind::Ground, LedgerOp::Destroy));
+        // P5-D33: the source row and every split row carry the ascending recipient set.
+        let mut set = vec![id(P1).as_uuid(), id(P2).as_uuid()];
+        set.sort_unstable();
+        assert!(rows[0].causes.contains(&recipients_cause(&set)));
+        for who in [P1, P2] {
+            let mine = character_rows(&tick, who);
+            let cause = mine[0]
+                .causes
+                .iter()
+                .find(|c| c.family == "economy")
+                .unwrap();
+            assert_eq!(
+                cause.fields.get("recipients"),
+                Some(&crate::domain::zone::phase4_projection::ItemEvidenceValue::Values(
+                    set.iter()
+                        .map(|r| crate::domain::zone::phase4_projection::ItemEvidenceValue::Text(
+                            r.to_string()
+                        ))
+                        .collect()
+                ))
+            );
+        }
         for who in [P1, P2] {
             let mine = character_rows(&tick, who);
             assert_eq!(mine.len(), 1);

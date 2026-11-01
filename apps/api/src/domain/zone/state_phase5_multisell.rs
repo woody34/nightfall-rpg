@@ -163,6 +163,24 @@ impl ZoneState {
             .get(index)
             .ok_or(RejectReason::NotPermitted)?
             .clone();
+        let gear = |t: i64| {
+            u32::try_from(t)
+                .ok()
+                .and_then(|t| {
+                    self.phase4
+                        .as_ref()?
+                        .rules
+                        .parts()
+                        .items
+                        .get(&t)
+                        .map(|d| d.kind == "Armor" || d.kind == "Weapon")
+                })
+                .unwrap_or(false)
+        };
+        // z-review-7 P3-5: pinned prepares an enchanted entry only for an armor/weapon input.
+        if enchant != 0 && !template.ingredients.iter().any(|i| gear(i.id)) {
+            return Err(RejectReason::NotPermitted);
+        }
         if template.ingredients.iter().any(|i| i.id < 0)
             || template.products.iter().any(|p| p.id < 0)
         {
@@ -331,11 +349,13 @@ impl ZoneState {
         }
         // Maintained lists copy the enchant to armor/weapon products and the i-th augment to
         // the i-th non-stackable product unit (`:352-363`); elementals are a no-op (B10).
-        let mut unit = 0_usize;
+        let mut unit: usize;
         let mut affected = Vec::new();
         let mut produced: BTreeMap<ItemInstanceId, ItemInstance> = BTreeMap::new();
         let mut rows = Vec::new();
         for (_, count, stackable, gear) in &products {
+            // z-review-7 P3-4: pinned indexes the augments per product line.
+            unit = 0;
             let edits_for = if *stackable { 1 } else { *count };
             for _ in 0..edits_for {
                 let changes = per_edit.next().ok_or(RejectReason::InvalidLoad)?;

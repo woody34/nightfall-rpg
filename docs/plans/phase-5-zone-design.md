@@ -987,7 +987,10 @@ Checks: weight, slots, adena. Commit: consume adena, then each entry moves back 
   - a flood-gate refusal → `RATE_LIMITED` (zone `RateLimited`, codec 103).
 - **Stock.** `stock[(list, template)]` exists only while a product is below its maximum or has a restock pending. An absent key means full stock. Phase 2 removes an entry on its due tick.
 - **`refund_order`.** It lists the refund tab's template ids in tab order after the operation, and it is empty for a buy.
-- **Merchant binding.** The fixture table is `merchant_fixtures.toml` (P5-D29). It is interim-empty until it lands.
+- **Merchant binding.** The fixture table is `merchant_fixtures.toml` (P5-D29). It is required: V7 boot refuses when it is absent. The V7 bootstrap spawns every row.
+- **Seed binding (adaptation, z-review-7 P3-2).** Pinned `Seed.java` binds seed and seeder before `useMagic`, even when the cast then fails. Nightfall binds only once the Sowing cast has started, so a refused use changes nothing (I1). The difference shows only when the cast start refuses.
+- **Default enchant (z-review-7 P3-6).** `template.getDefaultEnchantLevel()` (152 pinned items) is not applied to new instances. This is vacuous in Phase 5: none of those items is a buylist or multisell product. It is recorded for Phase 4 item creation.
+- **Capacity buckets (z-review-7 P3-7).** Vendor and multisell room checks count quest items in the quest pool. Pinned `validateCapacity(slots)` counts them all as ordinary. This is vacuous: no product is a quest item. Multisell checks possession before room (§7 adaptation).
 
 ## 7. Multisell (A9, B10; F19, R20, R42)
 
