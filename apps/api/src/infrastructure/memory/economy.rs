@@ -298,6 +298,7 @@ impl InMemoryEconomyStore {
     /// The whole write, atomically (dry run over copies, then one assignment). The memory
     /// character repository calls it inside its combined checkpoint, which holds the receipts.
     pub(crate) fn apply_write(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError> {
+        let derived = crate::application::economy_facts::derive_write_facts(write)?;
         let mut state = self.lock();
         Self::take_transient(&mut state)?;
         // c-review-4 P2-1: every released lease must still be held by this (zone, epoch); a
@@ -357,6 +358,8 @@ impl InMemoryEconomyStore {
         state.deliveries = deliveries;
         state.ledger.extend(write.ledger.iter().cloned());
         state.outbox.extend(write.outbox.iter().cloned());
+        // P5-D18: the economy facts are derived from the ledger rows; the zone emits none.
+        state.outbox.extend(derived);
         for key in &write.lease_releases {
             state.leases.remove(key);
         }

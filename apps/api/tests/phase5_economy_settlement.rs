@@ -297,7 +297,7 @@ fn pickup(
         1,
         80,
         0,
-        serde_json::json!({"before": ground, "after": null, "transfer": {"link": PICKUP_LINK, "mode": "identity"}}),
+        serde_json::json!({"before": ground, "after": null, "transfer": {"link": PICKUP_LINK, "mode": "identity"}, "receipt": "receipt:pick_up_item:00000000-0000-0000-0000-000000007777"}),
     )];
     if character_rows {
         ledger.push(row(
@@ -307,7 +307,7 @@ fn pickup(
             1,
             80,
             0,
-            serde_json::json!({"before": null, "after": picked(2), "transfer": {"link": PICKUP_LINK, "mode": "identity"}}),
+            serde_json::json!({"before": null, "after": picked(2), "transfer": {"link": PICKUP_LINK, "mode": "identity"}, "receipt": "receipt:pick_up_item:00000000-0000-0000-0000-000000007777"}),
         ));
     }
     let write = EconomyCheckpointWrite {
@@ -466,6 +466,18 @@ async fn postgres_pickup_settles_scalars_economy_rows_and_receipt_in_one_transac
     .await
     .unwrap();
     assert_eq!(stored.0, "fp");
+    // P5-D18: one picked_up fact, derived from the two pickup rows by the writer.
+    let facts: Vec<serde_json::Value> =
+        sqlx::query_scalar("SELECT payload FROM outbox WHERE subject='nightfall.item.picked_up'")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(facts.len(), 1);
+    assert_eq!(facts[0]["rows"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        facts[0]["operation"],
+        "receipt:pick_up_item:00000000-0000-0000-0000-000000007777"
+    );
     assert_eq!(stored.1["economy_result"], "0a0208011001");
     let owners: Vec<(String, String)> =
         sqlx::query_as("SELECT owner_kind,op FROM item_ledger WHERE instance_id=$1 ORDER BY id")

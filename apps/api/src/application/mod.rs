@@ -6,6 +6,7 @@
 
 pub mod checkpoint;
 pub mod economy;
+pub mod economy_facts;
 pub mod economy_reads;
 pub mod economy_scheduler;
 pub mod economy_zone_reads;

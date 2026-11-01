@@ -479,7 +479,9 @@ pub(super) async fn checkpoint_in(
             vec![receipt.account_id.into(), receipt.operation.clone().into(), receipt.request_key.into(), receipt.character_id.into(),
                  receipt.fingerprint.clone().into(), receipt.response().into()]).await?;
     }
-    for fact in &write.outbox {
+    // P5-D18: the economy facts are derived from the ledger rows here; the zone emits none.
+    let derived = crate::application::economy_facts::derive_write_facts(write)?;
+    for fact in write.outbox.iter().chain(&derived) {
         let mut payload = fact.payload.clone();
         if let serde_json::Value::Object(map) = &mut payload {
             map.insert("fact_id".into(), serde_json::Value::String(fact.fact_id.to_string()));
